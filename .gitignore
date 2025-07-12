@@ -1,3 +1,6 @@
+# Test Scripts
+tests/
+
 # Python
 __pycache__/
 *.py[cod]
