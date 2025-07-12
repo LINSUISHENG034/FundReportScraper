@@ -1,0 +1,74 @@
+# 生产环境专用Dockerfile
+# Production Dockerfile optimized for size and security
+
+# 使用官方Python 3.10 slim镜像作为基础镜像
+FROM python:3.10-slim as builder
+
+# 设置构建参数
+ARG DEBIAN_FRONTEND=noninteractive
+
+# 安装构建依赖
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制依赖文件
+COPY requirements.txt pyproject.toml ./
+
+# 创建虚拟环境并安装依赖
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# 升级pip并安装依赖
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# 生产运行时镜像
+FROM python:3.10-slim as runtime
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/app/src"
+
+# 创建非root用户
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# 安装运行时依赖
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# 从builder阶段复制虚拟环境
+COPY --from=builder /opt/venv /opt/venv
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制应用代码
+COPY --chown=appuser:appuser . .
+
+# 创建必要的目录
+RUN mkdir -p /app/logs /app/data /app/exports /app/reports && \
+    chown -R appuser:appuser /app
+
+# 切换到非root用户
+USER appuser
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+
+# 暴露端口
+EXPOSE 8000
+
+# 默认命令（可被docker-compose覆盖）
+CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

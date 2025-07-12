@@ -1,0 +1,233 @@
+version: '3.8'
+
+services:
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:14-alpine
+    container_name: fund_postgres_prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fundreport}
+      POSTGRES_USER: ${POSTGRES_USER:-funduser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ./scripts/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - fund_network_prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-funduser} -d ${POSTGRES_DB:-fundreport}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis缓存和任务队列
+  redis:
+    image: redis:7-alpine
+    container_name: fund_redis_prod
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data_prod:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - fund_network_prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # MinIO对象存储
+  minio:
+    image: minio/minio:latest
+    container_name: fund_minio_prod
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data_prod:/data
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    networks:
+      - fund_network_prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # FastAPI应用
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: fund_api_prod
+    environment:
+      # 数据库配置
+      DATABASE_URL: postgresql://${POSTGRES_USER:-funduser}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-fundreport}
+      
+      # Redis配置
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      
+      # MinIO配置
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-fund-reports}
+      MINIO_SECURE: "false"
+      
+      # 应用配置
+      APP_ENV: production
+      DEBUG: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SECRET_KEY: ${SECRET_KEY}
+      
+      # 爬虫配置
+      TARGET_BASE_URL: https://www.eid.csrc.gov.cn
+      TARGET_SEARCH_URL: https://www.eid.csrc.gov.cn/eid/fund/fundList
+      REQUEST_TIMEOUT: 30
+      
+      # 限流配置
+      RATE_LIMIT_MAX_TOKENS: 60
+      RATE_LIMIT_REFILL_RATE: 1.0
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./exports:/app/exports
+      - ./reports:/app/reports
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks:
+      - fund_network_prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Worker
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: fund_celery_worker_prod
+    command: ["celery", "-A", "src.core.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+    environment:
+      # 继承API相同的环境变量
+      DATABASE_URL: postgresql://${POSTGRES_USER:-funduser}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-fundreport}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-fund-reports}
+      MINIO_SECURE: "false"
+      APP_ENV: production
+      DEBUG: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SECRET_KEY: ${SECRET_KEY}
+      TARGET_BASE_URL: https://www.eid.csrc.gov.cn
+      TARGET_SEARCH_URL: https://www.eid.csrc.gov.cn/eid/fund/fundList
+      REQUEST_TIMEOUT: 30
+      RATE_LIMIT_MAX_TOKENS: 60
+      RATE_LIMIT_REFILL_RATE: 1.0
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./exports:/app/exports
+      - ./reports:/app/reports
+    networks:
+      - fund_network_prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Celery Beat (定时任务调度器)
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: fund_celery_beat_prod
+    command: ["celery", "-A", "src.core.celery_app", "beat", "--loglevel=info", "--scheduler=django_celery_beat.schedulers:DatabaseScheduler"]
+    environment:
+      # 继承相同的环境变量
+      DATABASE_URL: postgresql://${POSTGRES_USER:-funduser}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-fundreport}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-fund-reports}
+      MINIO_SECURE: "false"
+      APP_ENV: production
+      DEBUG: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SECRET_KEY: ${SECRET_KEY}
+      TARGET_BASE_URL: https://www.eid.csrc.gov.cn
+      TARGET_SEARCH_URL: https://www.eid.csrc.gov.cn/eid/fund/fundList
+      REQUEST_TIMEOUT: 30
+      RATE_LIMIT_MAX_TOKENS: 60
+      RATE_LIMIT_REFILL_RATE: 1.0
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    networks:
+      - fund_network_prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Nginx反向代理 (可选)
+  nginx:
+    image: nginx:alpine
+    container_name: fund_nginx_prod
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/ssl:/etc/nginx/ssl:ro
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    networks:
+      - fund_network_prod
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data_prod:
+    driver: local
+  redis_data_prod:
+    driver: local
+  minio_data_prod:
+    driver: local
+
+networks:
+  fund_network_prod:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
