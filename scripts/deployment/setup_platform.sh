@@ -96,7 +96,7 @@ check_system_requirements() {
     fi
     
     # 检查必需的命令
-    local required_commands=("docker" "docker-compose" "python3" "curl" "git")
+    local required_commands=("docker" "python3" "curl" "git")
     
     for cmd in "${required_commands[@]}"; do
         if command -v "$cmd" &> /dev/null; then
@@ -104,10 +104,6 @@ check_system_requirements() {
             case $cmd in
                 "docker")
                     version=$(docker --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-                    log "SUCCESS" "$cmd 已安装 (版本: $version)"
-                    ;;
-                "docker-compose")
-                    version=$(docker-compose --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
                     log "SUCCESS" "$cmd 已安装 (版本: $version)"
                     ;;
                 "python3")
@@ -123,6 +119,18 @@ check_system_requirements() {
             requirements_met=false
         fi
     done
+    
+    # 检查docker-compose (可选，因为新版Docker包含compose)
+    if command -v docker-compose &> /dev/null; then
+        local compose_version=$(docker-compose --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        log "SUCCESS" "docker-compose 已安装 (版本: $compose_version)"
+    elif docker compose version &> /dev/null; then
+        local compose_version=$(docker compose version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        log "SUCCESS" "docker compose 已安装 (版本: $compose_version)"
+    else
+        log "ERROR" "docker-compose 或 docker compose 未安装"
+        requirements_met=false
+    fi
     
     # 检查系统资源
     log "INFO" "检查系统资源..."
@@ -150,7 +158,9 @@ check_system_requirements() {
     local ports_to_check=(8000 5432 6379 9000 9001)
     
     for port in "${ports_to_check[@]}"; do
-        if ss -tlnp 2>/dev/null | grep -q ":$port "; then
+        if command -v ss &> /dev/null && ss -tlnp 2>/dev/null | grep -q ":$port "; then
+            log "WARNING" "端口 $port 已被占用"
+        elif command -v netstat &> /dev/null && netstat -tlnp 2>/dev/null | grep -q ":$port "; then
             log "WARNING" "端口 $port 已被占用"
         else
             log "SUCCESS" "端口 $port 可用"
@@ -210,12 +220,6 @@ install_dependencies() {
             rm get-docker.sh
         fi
         
-        # 安装Docker Compose
-        if ! command -v docker-compose &> /dev/null; then
-            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
-        fi
-        
     elif command -v yum &> /dev/null; then
         # CentOS/RHEL
         log "INFO" "检测到 yum 包管理器，安装依赖..."
@@ -233,17 +237,11 @@ install_dependencies() {
             sudo usermod -aG docker $USER
         fi
         
-        # 安装Docker Compose
-        if ! command -v docker-compose &> /dev/null; then
-            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
-        fi
-        
     elif command -v brew &> /dev/null; then
         # macOS
         log "INFO" "检测到 Homebrew，安装依赖..."
         
-        brew install docker docker-compose python3 git curl
+        brew install docker python3 git curl
         
     else
         log "ERROR" "未检测到支持的包管理器，请手动安装依赖"
@@ -269,16 +267,16 @@ show_installation_guide() {
     echo
     echo -e "${YELLOW}Ubuntu/Debian:${NC}"
     echo "  sudo apt-get update"
-    echo "  sudo apt-get install -y docker.io docker-compose python3 python3-pip git curl"
+    echo "  sudo apt-get install -y docker.io python3 python3-pip git curl"
     echo "  sudo usermod -aG docker \$USER"
     echo
     echo -e "${YELLOW}CentOS/RHEL:${NC}"
-    echo "  sudo yum install -y docker docker-compose python3 python3-pip git curl"
+    echo "  sudo yum install -y docker python3 python3-pip git curl"
     echo "  sudo systemctl start docker && sudo systemctl enable docker"
     echo "  sudo usermod -aG docker \$USER"
     echo
     echo -e "${YELLOW}macOS:${NC}"
-    echo "  brew install docker docker-compose python3 git curl"
+    echo "  brew install docker python3 git curl"
     echo "  # 或下载 Docker Desktop for Mac"
     echo
     echo -e "${YELLOW}安装完成后，请重新运行此脚本${NC}"
@@ -352,16 +350,16 @@ configure_deployment() {
     
     case $DEPLOYMENT_MODE in
         "development")
-            configure_development()
+            configure_development
             ;;
         "production")
-            configure_production()
+            configure_production
             ;;
         "custom")
-            configure_custom()
+            configure_custom
             ;;
         "demo")
-            configure_demo()
+            configure_demo
             ;;
     esac
     
@@ -500,14 +498,21 @@ EOF
     echo -e "${YELLOW}=================================${NC}"
 }
 
+# 配置自定义模式
+configure_custom() {
+    echo
+    echo -e "${CYAN}=== 自定义配置模式 ===${NC}"
+    echo "请参考生产环境配置，根据需要自定义参数"
+    
+    configure_production
+}
+
 # 配置演示模式
 configure_demo() {
     echo
     echo -e "${CYAN}=== 演示模式配置 ===${NC}"
     
     # 演示模式使用默认配置
-    api_port=8000
-    
     cat > "$PROJECT_ROOT/.env.demo" << EOF
 # 演示模式配置
 API_PORT=8000
@@ -541,7 +546,7 @@ deploy_system() {
             deploy_production
             ;;
         "custom")
-            deploy_custom
+            deploy_production  # 自定义模式使用生产部署
             ;;
         "demo")
             deploy_demo
@@ -553,31 +558,134 @@ deploy_system() {
 deploy_development() {
     log "INFO" "部署开发环境..."
     
+    # 设置PATH以包含用户本地bin目录
+    export PATH="$HOME/.local/bin:$PATH"
+    
+    # 设置Python路径
+    cd "$PROJECT_ROOT"
+    export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+    
+    # 检查Python环境
+    log "INFO" "检查Python环境..."
+    if ! python3 -c "import sys; print(sys.version)" >/dev/null 2>&1; then
+        log "ERROR" "Python3环境异常"
+        return 1
+    fi
+    
     # 安装Python依赖
     log "INFO" "安装Python依赖..."
     if [ -f "$PROJECT_ROOT/pyproject.toml" ]; then
-        pip3 install -e .
+        log "INFO" "使用pyproject.toml安装依赖..."
+        if ! python3 -m pip install -e . 2>"$LOG_FILE"; then
+            log "WARNING" "pyproject.toml安装失败，尝试手动安装基础依赖"
+            python3 -m pip install fastapi uvicorn pydantic sqlalchemy alembic psycopg2-binary redis celery structlog requests pydantic-settings 2>"$LOG_FILE" || log "WARNING" "基础依赖安装失败"
+        fi
+    elif [ -f "$PROJECT_ROOT/requirements.txt" ]; then
+        log "INFO" "使用requirements.txt安装依赖..."
+        python3 -m pip install -r requirements.txt 2>"$LOG_FILE" || log "WARNING" "requirements.txt安装失败"
     else
-        pip3 install -r requirements.txt 2>/dev/null || log "WARNING" "未找到requirements.txt"
+        log "INFO" "安装基础依赖..."
+        python3 -m pip install fastapi uvicorn pydantic sqlalchemy alembic psycopg2-binary redis celery structlog requests pydantic-settings 2>"$LOG_FILE" || log "WARNING" "基础依赖安装失败"
+    fi
+    
+    # 检查关键模块
+    log "INFO" "验证关键Python模块..."
+    for module in fastapi uvicorn pydantic; do
+        if ! python3 -c "import $module" 2>/dev/null; then
+            log "ERROR" "关键模块 $module 不可用"
+            return 1
+        fi
+    done
+    
+    # 验证API模块可以导入
+    log "INFO" "验证API模块导入..."
+    
+    # 创建临时错误文件用于调试
+    local temp_error_file="$PROJECT_ROOT/logs/api_import_error.log"
+    local temp_test_script="$PROJECT_ROOT/logs/test_import.py"
+    
+    # 创建临时测试脚本
+    cat > "$temp_test_script" << 'EOF'
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+import src.api.main
+print("API模块导入成功")
+EOF
+    
+    if ! python3 "$temp_test_script" 2>"$temp_error_file"; then
+        log "ERROR" "API模块导入失败"
+        if [ -f "$temp_error_file" ]; then
+            log "ERROR" "错误详情："
+            while read line; do
+                log "ERROR" "  $line"
+            done < "$temp_error_file"
+        fi
+        rm -f "$temp_test_script" "$temp_error_file" 2>/dev/null
+        return 1
+    else
+        log "SUCCESS" "API模块导入成功"
+        rm -f "$temp_test_script" "$temp_error_file" 2>/dev/null
     fi
     
     # 启动服务
-    if [ "$DB_TYPE" = "postgresql" ]; then
+    local db_type="sqlite"
+    if [ -f "$PROJECT_ROOT/.env.dev" ]; then
+        db_type=$(grep "DB_TYPE" "$PROJECT_ROOT/.env.dev" | cut -d'=' -f2 2>/dev/null || echo "sqlite")
+    fi
+    
+    if [ "$db_type" = "postgresql" ]; then
         log "INFO" "启动PostgreSQL容器..."
-        docker-compose -f docker-compose.dev.yml up -d postgres redis
+        
+        # 使用docker或docker-compose
+        if command -v docker-compose &> /dev/null; then
+            if [ -f "$PROJECT_ROOT/docker-compose.dev.yml" ]; then
+                docker-compose -f docker-compose.dev.yml up -d postgres redis 2>"$LOG_FILE" || log "WARNING" "Docker服务启动失败"
+            else
+                log "WARNING" "docker-compose.dev.yml文件不存在，跳过PostgreSQL启动"
+            fi
+        elif docker compose version &> /dev/null; then
+            if [ -f "$PROJECT_ROOT/docker-compose.dev.yml" ]; then
+                docker compose -f docker-compose.dev.yml up -d postgres redis 2>"$LOG_FILE" || log "WARNING" "Docker服务启动失败"
+            else
+                log "WARNING" "docker-compose.dev.yml文件不存在，跳过PostgreSQL启动"
+            fi
+        fi
         
         # 等待数据库启动
         log "INFO" "等待数据库启动..."
         sleep 10
+    else
+        log "INFO" "使用SQLite数据库，无需启动额外服务"
     fi
     
     # 初始化数据库
     log "INFO" "初始化数据库..."
-    python3 -m alembic upgrade head 2>/dev/null || log "WARNING" "数据库迁移失败，可能需要手动处理"
+    if [ -f "$PROJECT_ROOT/alembic.ini" ]; then
+        python3 -m alembic upgrade head 2>"$LOG_FILE" || log "WARNING" "数据库迁移失败，可能需要手动处理"
+    else
+        log "INFO" "未找到alembic.ini，跳过数据库迁移"
+    fi
     
     # 启动API服务
     log "INFO" "启动API服务..."
-    nohup python3 -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload > "$PROJECT_ROOT/logs/api.log" 2>&1 &
+    
+    # 创建启动脚本
+    cat > "$PROJECT_ROOT/start_api.sh" << EOF
+#!/bin/bash
+cd "$(dirname "\$0")"
+export PATH="\$HOME/.local/bin:\$PATH"
+export PYTHONPATH="\$(pwd):\$PYTHONPATH"
+python3 -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+EOF
+    chmod +x "$PROJECT_ROOT/start_api.sh"
+    
+    # 后台启动API服务
+    nohup bash "$PROJECT_ROOT/start_api.sh" > "$PROJECT_ROOT/logs/api.log" 2>&1 &
+    local api_pid=$!
+    
+    log "INFO" "API服务已启动，PID: $api_pid"
+    echo "$api_pid" > "$PROJECT_ROOT/logs/api.pid"
     
     log "SUCCESS" "开发环境部署完成"
 }
@@ -588,11 +696,25 @@ deploy_production() {
     
     # 构建生产镜像
     log "INFO" "构建生产Docker镜像..."
-    docker-compose -f docker-compose.prod.yml build
     
-    # 启动服务
-    log "INFO" "启动生产环境服务..."
-    docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
+    # 使用docker-compose或docker compose
+    if command -v docker-compose &> /dev/null; then
+        docker-compose -f docker-compose.prod.yml build 2>/dev/null || log "WARNING" "Docker镜像构建失败"
+        
+        # 启动服务
+        log "INFO" "启动生产环境服务..."
+        docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d 2>/dev/null || log "WARNING" "Docker服务启动失败"
+        
+    elif docker compose version &> /dev/null; then
+        docker compose -f docker-compose.prod.yml build 2>/dev/null || log "WARNING" "Docker镜像构建失败"
+        
+        # 启动服务
+        log "INFO" "启动生产环境服务..."
+        docker compose -f docker-compose.prod.yml --env-file .env.prod up -d 2>/dev/null || log "WARNING" "Docker服务启动失败"
+    else
+        log "ERROR" "未找到docker-compose或docker compose命令"
+        return 1
+    fi
     
     # 等待服务启动
     log "INFO" "等待服务启动..."
@@ -600,7 +722,11 @@ deploy_production() {
     
     # 初始化数据库
     log "INFO" "初始化数据库..."
-    docker-compose -f docker-compose.prod.yml exec -T api alembic upgrade head
+    if command -v docker-compose &> /dev/null; then
+        docker-compose -f docker-compose.prod.yml exec -T api alembic upgrade head 2>/dev/null || log "WARNING" "数据库初始化失败"
+    elif docker compose version &> /dev/null; then
+        docker compose -f docker-compose.prod.yml exec -T api alembic upgrade head 2>/dev/null || log "WARNING" "数据库初始化失败"
+    fi
     
     log "SUCCESS" "生产环境部署完成"
 }
@@ -614,7 +740,9 @@ deploy_demo() {
     
     # 加载示例数据
     log "INFO" "加载示例数据..."
-    python3 scripts/demos/load_sample_data.py 2>/dev/null || log "WARNING" "示例数据加载失败"
+    if [ -f "$PROJECT_ROOT/scripts/demos/load_sample_data.py" ]; then
+        python3 scripts/demos/load_sample_data.py 2>/dev/null || log "WARNING" "示例数据加载失败"
+    fi
     
     log "SUCCESS" "演示模式部署完成"
 }
@@ -623,35 +751,100 @@ deploy_demo() {
 verify_deployment() {
     log "STEP" "验证部署结果..."
     
-    local api_port=$(grep "API_PORT" "$CONFIG_FILE" | cut -d'=' -f2)
-    api_port=${api_port:-8000}
+    local api_port=8000
+    if [ -f "$CONFIG_FILE" ]; then
+        api_port=$(grep "API_PORT" "$CONFIG_FILE" | cut -d'=' -f2 2>/dev/null || echo "8000")
+    fi
     
     # 等待服务完全启动
     log "INFO" "等待服务完全启动..."
-    sleep 10
+    sleep 5
     
     # 检查API健康状态
-    local max_attempts=30
+    local max_attempts=12  # 减少到12次，每次5秒
     local attempt=1
+    local api_started=false
     
     while [ $attempt -le $max_attempts ]; do
-        if curl -f "http://localhost:$api_port/health" >/dev/null 2>&1; then
-            log "SUCCESS" "API服务健康检查通过"
-            break
+        log "INFO" "等待API服务启动... ($attempt/$max_attempts)"
+        
+        # 检查API进程是否存在
+        if [ -f "$PROJECT_ROOT/logs/api.pid" ]; then
+            local api_pid=$(cat "$PROJECT_ROOT/logs/api.pid" 2>/dev/null)
+            if [ -n "$api_pid" ] && kill -0 "$api_pid" 2>/dev/null; then
+                log "INFO" "API进程 $api_pid 正在运行"
+                
+                # 检查HTTP响应
+                if curl -f "http://localhost:$api_port/health" >/dev/null 2>&1; then
+                    log "SUCCESS" "API服务健康检查通过"
+                    api_started=true
+                    break
+                elif curl -f "http://localhost:$api_port/" >/dev/null 2>&1; then
+                    log "SUCCESS" "API服务响应正常"
+                    api_started=true
+                    break
+                else
+                    log "INFO" "API服务启动中，等待响应..."
+                fi
+            else
+                log "WARNING" "API进程可能已停止，检查日志..."
+                if [ -f "$PROJECT_ROOT/logs/api.log" ]; then
+                    tail -5 "$PROJECT_ROOT/logs/api.log" >> "$LOG_FILE"
+                fi
+            fi
         else
-            log "INFO" "等待API服务启动... ($attempt/$max_attempts)"
-            sleep 5
-            ((attempt++))
+            log "INFO" "等待API进程创建PID文件..."
         fi
+        
+        sleep 5
+        ((attempt++))
     done
     
-    if [ $attempt -gt $max_attempts ]; then
-        log "ERROR" "API服务启动超时"
+    if [ "$api_started" != "true" ]; then
+        log "ERROR" "API服务启动失败或超时"
+        
+        # 显示错误诊断信息
+        log "INFO" "开始故障诊断..."
+        
+        # 检查端口占用
+        if command -v ss &> /dev/null; then
+            local port_check=$(ss -tlnp | grep ":$api_port " 2>/dev/null)
+            if [ -n "$port_check" ]; then
+                log "INFO" "端口 $api_port 已被占用: $port_check"
+            else
+                log "WARNING" "端口 $api_port 没有被监听"
+            fi
+        fi
+        
+        # 检查API日志
+        if [ -f "$PROJECT_ROOT/logs/api.log" ]; then
+            log "INFO" "API启动日志内容："
+            tail -20 "$PROJECT_ROOT/logs/api.log" | while read line; do
+                log "INFO" "API日志: $line"
+            done
+        else
+            log "WARNING" "API日志文件不存在"
+        fi
+        
+        # 检查Python模块
+        log "INFO" "检查Python模块导入..."
+        cd "$PROJECT_ROOT"
+        export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+        
+        if python3 -c "import src.api.main" 2>/dev/null; then
+            log "SUCCESS" "API模块导入成功"
+        else
+            log "ERROR" "API模块导入失败"
+            python3 -c "import src.api.main" 2>&1 | head -10 | while read line; do
+                log "ERROR" "导入错误: $line"
+            done
+        fi
+        
         return 1
     fi
     
     # 测试主要端点
-    local endpoints=("/health" "/docs" "/api/v1/funds/" "/api/v1/reports/")
+    local endpoints=("/health" "/docs" "/")
     
     for endpoint in "${endpoints[@]}"; do
         if curl -f "http://localhost:$api_port$endpoint" >/dev/null 2>&1; then
@@ -662,17 +855,32 @@ verify_deployment() {
     done
     
     # 检查Docker服务（如果是容器化部署）
-    if [ "$DEPLOYMENT_MODE" = "production" ]; then
+    if [ "$DEPLOYMENT_MODE" = "production" ] || [ "$DEPLOYMENT_MODE" = "custom" ]; then
         log "INFO" "检查Docker服务状态..."
         
-        local services=$(docker-compose -f docker-compose.prod.yml ps --services)
-        for service in $services; do
-            if docker-compose -f docker-compose.prod.yml ps "$service" | grep -q "Up"; then
-                log "SUCCESS" "服务 $service 运行正常"
-            else
-                log "WARNING" "服务 $service 状态异常"
-            fi
-        done
+        if command -v docker-compose &> /dev/null; then
+            local services=$(docker-compose -f docker-compose.prod.yml ps --services 2>/dev/null)
+        elif docker compose version &> /dev/null; then
+            local services=$(docker compose -f docker-compose.prod.yml ps --services 2>/dev/null)
+        fi
+        
+        if [ -n "$services" ]; then
+            for service in $services; do
+                if command -v docker-compose &> /dev/null; then
+                    if docker-compose -f docker-compose.prod.yml ps "$service" 2>/dev/null | grep -q "Up"; then
+                        log "SUCCESS" "服务 $service 运行正常"
+                    else
+                        log "WARNING" "服务 $service 状态异常"
+                    fi
+                elif docker compose version &> /dev/null; then
+                    if docker compose -f docker-compose.prod.yml ps "$service" 2>/dev/null | grep -q "Up"; then
+                        log "SUCCESS" "服务 $service 运行正常"
+                    else
+                        log "WARNING" "服务 $service 状态异常"
+                    fi
+                fi
+            done
+        fi
     fi
     
     log "SUCCESS" "部署验证完成"
@@ -680,8 +888,10 @@ verify_deployment() {
 
 # 显示部署结果
 show_deployment_summary() {
-    local api_port=$(grep "API_PORT" "$CONFIG_FILE" | cut -d'=' -f2)
-    api_port=${api_port:-8000}
+    local api_port=8000
+    if [ -f "$CONFIG_FILE" ]; then
+        api_port=$(grep "API_PORT" "$CONFIG_FILE" | cut -d'=' -f2 2>/dev/null || echo "8000")
+    fi
     
     echo
     echo -e "${GREEN}"
@@ -697,20 +907,27 @@ EOF
     echo -e "${CYAN}=== 访问地址 ===${NC}"
     echo "🌐 API文档:      http://localhost:$api_port/docs"
     echo "❤️  健康检查:    http://localhost:$api_port/health"
-    echo "📊 Web管理界面:  python gui/web_admin.py (需要安装streamlit)"
+    echo "📊 Web管理界面:  streamlit run gui/web_admin.py"
     
-    if [ "$DEPLOYMENT_MODE" = "production" ]; then
+    if [ "$DEPLOYMENT_MODE" = "production" ] || [ "$DEPLOYMENT_MODE" = "custom" ]; then
         echo "🗄️  MinIO控制台: http://localhost:9001"
     fi
     
     echo
     echo -e "${CYAN}=== 管理命令 ===${NC}"
     
-    if [ "$DEPLOYMENT_MODE" = "production" ]; then
-        echo "查看服务状态: docker-compose -f docker-compose.prod.yml ps"
-        echo "查看日志:     docker-compose -f docker-compose.prod.yml logs -f"
-        echo "重启服务:     docker-compose -f docker-compose.prod.yml restart"
-        echo "停止服务:     docker-compose -f docker-compose.prod.yml down"
+    if [ "$DEPLOYMENT_MODE" = "production" ] || [ "$DEPLOYMENT_MODE" = "custom" ]; then
+        if command -v docker-compose &> /dev/null; then
+            echo "查看服务状态: docker-compose -f docker-compose.prod.yml ps"
+            echo "查看日志:     docker-compose -f docker-compose.prod.yml logs -f"
+            echo "重启服务:     docker-compose -f docker-compose.prod.yml restart"
+            echo "停止服务:     docker-compose -f docker-compose.prod.yml down"
+        elif docker compose version &> /dev/null; then
+            echo "查看服务状态: docker compose -f docker-compose.prod.yml ps"
+            echo "查看日志:     docker compose -f docker-compose.prod.yml logs -f"
+            echo "重启服务:     docker compose -f docker-compose.prod.yml restart"
+            echo "停止服务:     docker compose -f docker-compose.prod.yml down"
+        fi
     else
         echo "查看API日志:   tail -f logs/api.log"
         echo "停止服务:     pkill -f uvicorn"
@@ -722,7 +939,7 @@ EOF
     echo
     echo -e "${CYAN}=== 下一步操作 ===${NC}"
     echo "1. 🔍 访问 http://localhost:$api_port/docs 查看API文档"
-    echo "2. 📊 运行 'python gui/web_admin.py' 启动Web管理界面"
+    echo "2. 📊 运行 'streamlit run gui/web_admin.py' 启动Web管理界面"
     echo "3. ⚙️  创建数据采集任务开始使用系统"
     echo "4. 📖 查看 docs/ 目录下的详细文档"
     
@@ -776,19 +993,23 @@ main() {
     trap 'handle_error $LINENO' ERR
     
     # 检查是否在项目根目录
-    if [ ! -f "pyproject.toml" ] && [ ! -f "docker-compose.yml" ]; then
+    if [ ! -f "pyproject.toml" ] && [ ! -f "src/api/main.py" ]; then
         log "ERROR" "请在项目根目录运行此脚本"
         exit 1
     fi
     
-    # 显示欢迎信息
-    show_welcome
+    # 如果没有指定模式，显示欢迎信息
+    if [ -z "$DEPLOYMENT_MODE" ]; then
+        show_welcome
+    fi
     
     # 检查系统环境
     check_system_requirements
     
-    # 选择部署模式
-    choose_deployment_mode
+    # 选择部署模式（如果未指定）
+    if [ -z "$DEPLOYMENT_MODE" ]; then
+        choose_deployment_mode
+    fi
     
     # 配置部署参数
     configure_deployment

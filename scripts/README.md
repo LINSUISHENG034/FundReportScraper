@@ -1,11 +1,44 @@
 # 脚本目录说明
 ## Scripts Directory Overview
 
-本目录包含基金报告自动化采集与分析平台的所有脚本工具。
+本目录包含基金报告自动化采集与分析平台的所有脚本工具，按功能分类组织。
 
 ---
 
 ## 📁 目录结构
+
+```
+scripts/
+├── 📁 deployment/          # 部署相关脚本
+│   ├── setup_platform.sh   # 🚀 完整引导式部署脚本（主要部署工具）
+│   ├── deploy_simple.sh    # ⚡ 简化快速部署脚本
+│   ├── test_deployment.sh  # 🧪 部署测试脚本
+│   └── start_api.sh        # 🔄 API服务启动脚本
+├── 📁 demo/                # 功能演示脚本  
+│   ├── show_dual_interface.sh    # 📺 双界面设计展示
+│   └── show_improvements.sh      # 💡 用户体验改进展示
+├── 📁 analysis/            # 数据分析脚本
+├── 📁 demos/               # 功能演示脚本
+├── 📁 verification/        # 验证测试脚本
+├── 📁 legacy/              # 历史脚本
+└── README.md              # 本说明文件
+```
+
+### 🚀 部署脚本 (deployment/)
+
+| 脚本文件 | 功能说明 | 使用场景 |
+|---------|---------|---------|
+| `setup_platform.sh` | 🌟 完整引导式部署脚本 | **主要部署工具**，支持所有模式 |
+| `deploy_simple.sh` | ⚡ 简化快速部署脚本 | 开发测试环境快速部署 |
+| `test_deployment.sh` | 🧪 部署验证测试 | 验证部署结果和功能 |
+| `start_api.sh` | 🔄 API服务启动脚本 | 由部署脚本自动生成 |
+
+### 🎭 演示脚本 (demo/)
+
+| 脚本文件 | 功能说明 | 展示内容 |
+|---------|---------|---------|
+| `show_dual_interface.sh` | 📺 双界面设计展示 | 用户界面 + 管理后台设计 |
+| `show_improvements.sh` | 💡 用户体验改进展示 | 改进前后对比展示 |
 
 ### 🔧 核心运维脚本
 

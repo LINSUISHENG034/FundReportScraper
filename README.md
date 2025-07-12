@@ -204,11 +204,14 @@ graph TB
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/your-org/fund-report-platform.git
-cd fund-report-platform
+git clone https://github.com/LINSUISHENG034/FundReportScraper.git
+cd FundReportScraper
 
-# 2. 运行引导式部署脚本
-./setup_platform.sh
+# 2. 运行主入口脚本（推荐）
+./setup.sh
+
+# 或者直接运行引导式部署
+./scripts/deployment/setup_platform.sh
 
 # 3. 选择部署模式
 # 🧪 开发环境 - 适合学习和测试
@@ -216,9 +219,19 @@ cd fund-report-platform
 # 📱 演示模式 - 快速体验功能
 
 # 4. 访问系统
-# Web界面: http://localhost:8000/docs
-# 管理后台: python gui/web_admin.py
+# 用户界面: http://localhost:8000/
+# 管理后台: http://localhost:8000/admin
+# API文档: http://localhost:8000/docs
 ```
+
+### 🎯 脚本工具
+
+| 脚本 | 用途 | 命令 |
+|------|------|------|
+| **🚀 主入口** | 交互式部署菜单 | `./setup.sh` |
+| **⚡ 快速部署** | 简单快速部署 | `./setup.sh --quick` |
+| **🏥 健康检查** | 系统状态检查 | `./setup.sh --health` |
+| **📺 功能演示** | 查看功能展示 | `./setup.sh` → 选择演示选项 |
 
 ### 🎮 Web管理界面
 
