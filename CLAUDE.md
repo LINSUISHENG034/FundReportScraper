@@ -35,28 +35,34 @@ The project will follow a modular architecture:
 
 ## Development Commands
 
-**Note**: The project codebase is not yet implemented. These commands are placeholders based on the planned technology stack:
+**第一阶段已完成** - 基础架构与核心爬取功能已实现
 
 ```bash
-# Environment setup (planned)
-conda activate fund-scraper  # Ensure conda environment is active
-pip install -r requirements.txt  # Will use Poetry or similar
+# Environment setup
+./setup_dev.sh                   # One-click development setup
+poetry install                   # Install dependencies
+cp .env.example .env             # Copy environment config
 
-# Development (planned)
-python -m pytest                 # Run all tests
-python -m pytest -v tests/unit/  # Run unit tests only
-python -m pytest --cov=src      # Run tests with coverage
-python -m black .               # Code formatting
-python -m flake8 .              # Linting
+# Development
+./run_tests.sh                   # Run tests with coverage
+python3 verify_phase1.py         # Verify Phase 1 completion
+poetry run pytest                # Run all tests  
+poetry run pytest -v tests/unit/ # Run unit tests only
+poetry run pytest --cov=src     # Run tests with coverage
+poetry run black src tests      # Code formatting
+poetry run flake8 src tests     # Linting
 
-# Docker operations (planned) 
-docker-compose up -d            # Start development services
-docker-compose logs -f          # View logs
-docker-compose down             # Stop services
+# Docker operations
+docker-compose -f docker-compose.dev.yml up -d  # Start dev services
+docker-compose -f docker-compose.dev.yml logs   # View logs
+docker-compose -f docker-compose.dev.yml down   # Stop services
 
-# Celery operations (planned)
-celery -A app.celery worker --loglevel=info     # Start worker
-celery -A app.celery beat --loglevel=info       # Start scheduler
+# Database operations
+poetry run alembic upgrade head  # Apply migrations
+poetry run alembic revision --autogenerate -m "description"  # Create migration
+
+# Application
+poetry run uvicorn src.main:app --reload        # Start FastAPI dev server
 ```
 
 ## Mandatory Development Requirements
