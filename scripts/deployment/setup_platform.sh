@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 
 # 全局变量
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"  # 从scripts/deployment回到项目根目录
 DEPLOYMENT_MODE=""
 CONFIG_FILE=""
 LOG_FILE="$PROJECT_ROOT/logs/deployment_$(date +%Y%m%d_%H%M%S).log"
