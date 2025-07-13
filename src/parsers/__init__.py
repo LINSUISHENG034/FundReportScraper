@@ -1,11 +1,9 @@
 """Parsers package initialization."""
 
 from .xbrl_parser import (
-    XBRLParser, XBRLParseError,
-    AssetAllocation, TopHolding, IndustryAllocation, FundBasicInfo
+    XBRLParser, ParsedFundData
 )
 
 __all__ = [
-    "XBRLParser", "XBRLParseError",
-    "AssetAllocation", "TopHolding", "IndustryAllocation", "FundBasicInfo"
+    "XBRLParser", "ParsedFundData"
 ]
