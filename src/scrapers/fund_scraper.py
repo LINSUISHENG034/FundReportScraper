@@ -15,20 +15,22 @@ from src.core.config import settings
 from src.core.logging import get_logger
 from src.models.database import ReportType
 from src.scrapers.base import BaseScraper, ParseError
+from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
 
 logger = get_logger(__name__)
 
 
-class FundReportScraper(BaseScraper):
+class FundReportScraper(CSRCFundReportScraper):
     """
     CSRC fund report scraper.
     爬取证监会基金报告的专用爬虫。
+
+    继承新的按照文档指导的实现
     """
-    
+
     def __init__(self):
-        super().__init__(base_url=settings.target.base_url)
-        self.search_url = settings.target.search_url
-        
+        super().__init__()
+
         logger.info(
             "fund_scraper.initialized",
             search_url=self.search_url
@@ -39,7 +41,8 @@ class FundReportScraper(BaseScraper):
         year: int,
         report_type: ReportType,
         page: int = 1,
-        page_size: int = 100
+        page_size: int = 100,
+        fund_type: Optional[str] = None
     ) -> Tuple[List[Dict], bool]:
         """
         Get fund report list from CSRC platform.
@@ -69,15 +72,8 @@ class FundReportScraper(BaseScraper):
         params = self._build_search_params(year, report_type, page, page_size)
         
         try:
-            # Make request to search endpoint
-            response = await self.post(
-                self.search_url,
-                data=params,
-                headers={
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "X-Requested-With": "XMLHttpRequest",
-                }
-            )
+            # 使用新的CSRC爬虫实现（继承的方法）
+            return await super().get_report_list(year, report_type, page, page_size, fund_type)
             
             # Parse response
             response_data = await self._parse_search_response(response)
@@ -108,7 +104,8 @@ class FundReportScraper(BaseScraper):
         self,
         year: int,
         report_type: ReportType,
-        max_pages: int = None
+        max_pages: int = None,
+        fund_type: Optional[str] = None
     ) -> List[Dict]:
         """
         Get all reports for a given year and type (handles pagination).
@@ -142,7 +139,7 @@ class FundReportScraper(BaseScraper):
                 break
             
             reports, has_next_page = await self.get_report_list(
-                year, report_type, page
+                year, report_type, page, 100, fund_type
             )
             
             all_reports.extend(reports)
@@ -303,58 +300,7 @@ class FundReportScraper(BaseScraper):
             )
             raise ParseError(f"Failed to parse response: {e}")
     
-    def _parse_report_item(self, item: List) -> Optional[Dict]:
-        """
-        Parse individual report item from response.
-        
-        Args:
-            item: Report item data (usually a list/array)
-            
-        Returns:
-            Parsed report dict or None if parsing fails
-        """
-        try:
-            # Expected format from CSRC platform (adjust based on actual response)
-            if len(item) < 6:
-                logger.warning(
-                    "fund_scraper.parse_item.insufficient_data",
-                    item_length=len(item)
-                )
-                return None
-            
-            # Extract data based on typical CSRC response format
-            fund_code = self._extract_fund_code(str(item[0]))
-            fund_name = self._clean_text(str(item[1]))
-            report_date = self._parse_date(str(item[2]))
-            report_type = self._parse_report_type(str(item[3]))
-            file_url = self._extract_file_url(str(item[4]))
-            
-            if not all([fund_code, fund_name, report_date, file_url]):
-                logger.warning(
-                    "fund_scraper.parse_item.missing_required_fields",
-                    fund_code=fund_code,
-                    fund_name=fund_name,
-                    report_date=report_date,
-                    file_url=bool(file_url)
-                )
-                return None
-            
-            return {
-                "fund_code": fund_code,
-                "fund_name": fund_name,
-                "report_date": report_date,
-                "report_type": report_type,
-                "file_url": file_url,
-                "raw_data": item
-            }
-            
-        except Exception as e:
-            logger.warning(
-                "fund_scraper.parse_item.error",
-                error=str(e),
-                item=str(item)[:200]
-            )
-            return None
+    # 删除旧的解析方法，使用继承的CSRCFundReportScraper._parse_report_item方法
     
     def _parse_html_response(self, soup: BeautifulSoup) -> Dict:
         """Parse HTML response (fallback method)."""

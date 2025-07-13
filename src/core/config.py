@@ -74,9 +74,10 @@ class ScraperSettings(BaseSettings):
 
 class TargetSettings(BaseSettings):
     """Target website configuration."""
-    
-    base_url: str = Field(default="https://www.eid.csrc.gov.cn")
-    search_url: str = Field(default="https://www.eid.csrc.gov.cn/eid/fund/fundList")
+
+    base_url: str = Field(default="http://eid.csrc.gov.cn")
+    search_url: str = Field(default="http://eid.csrc.gov.cn/fund/disclose/advanced_search_xbrl.do")
+    instance_url: str = Field(default="http://eid.csrc.gov.cn/fund/disclose/instance_html_view.do")
     
     class Config:
         env_prefix = "TARGET_"
