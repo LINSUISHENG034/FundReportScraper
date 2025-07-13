@@ -600,35 +600,42 @@ deploy_development() {
     # 验证API模块可以导入
     log "INFO" "验证API模块导入..."
     
-    # 创建临时错误文件用于调试
-    local temp_error_file="$PROJECT_ROOT/logs/api_import_error.log"
-    local temp_test_script="$PROJECT_ROOT/logs/test_import.py"
+    # 切换到项目根目录并设置PYTHONPATH
+    cd "$PROJECT_ROOT"
+    export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
     
-    # 创建临时测试脚本
-    cat > "$temp_test_script" << EOF
+    # 直接使用python3 -c进行测试，避免临时文件问题
+    if python3 -c "
 import sys
 import os
-# 确保项目根目录在Python路径中
-project_root = "$PROJECT_ROOT"
-sys.path.insert(0, project_root)
-os.chdir(project_root)
-import src.api.main
-print("API模块导入成功")
-EOF
-    
-    if ! python3 "$temp_test_script" 2>"$temp_error_file"; then
-        log "ERROR" "API模块导入失败"
-        if [ -f "$temp_error_file" ]; then
-            log "ERROR" "错误详情："
-            while read line; do
-                log "ERROR" "  $line"
-            done < "$temp_error_file"
-        fi
-        rm -f "$temp_test_script" "$temp_error_file" 2>/dev/null
-        return 1
-    else
+sys.path.insert(0, os.getcwd())
+try:
+    import src.api.main
+    print('API模块导入成功')
+except ImportError as e:
+    print(f'导入错误: {e}')
+    raise
+" 2>/dev/null; then
         log "SUCCESS" "API模块导入成功"
-        rm -f "$temp_test_script" "$temp_error_file" 2>/dev/null
+    else
+        log "ERROR" "API模块导入失败"
+        log "ERROR" "错误详情："
+        python3 -c "
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+try:
+    import src.api.main
+    print('API模块导入成功')
+except ImportError as e:
+    print(f'导入错误: {e}')
+    print(f'当前工作目录: {os.getcwd()}')
+    print(f'Python路径: {sys.path[:3]}')
+    raise
+" 2>&1 | while read line; do
+            log "ERROR" "  $line"
+        done
+        return 1
     fi
     
     # 启动服务
