@@ -14,7 +14,7 @@ from pydantic_settings import BaseSettings
 class DatabaseSettings(BaseSettings):
     """Database configuration settings."""
     
-    url: str = Field(default="postgresql://fund_user:fund_password@localhost:5432/fund_reports")
+    url: str = Field(default="sqlite:///./fund_reports.db")
     host: str = Field(default="localhost")
     port: int = Field(default=5432)
     name: str = Field(default="fund_reports")

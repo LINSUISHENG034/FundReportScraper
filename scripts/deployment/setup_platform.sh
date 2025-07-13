@@ -153,15 +153,29 @@ check_system_requirements() {
         log "WARNING" "可用磁盘空间: ${disk_space_gb}GB (建议至少20GB)"
     fi
     
-    # 检查端口占用
+    # 检查端口占用并清理
     log "INFO" "检查端口占用情况..."
     local ports_to_check=(8000 5432 6379 9000 9001)
     
     for port in "${ports_to_check[@]}"; do
         if command -v ss &> /dev/null && ss -tlnp 2>/dev/null | grep -q ":$port "; then
-            log "WARNING" "端口 $port 已被占用"
+            log "WARNING" "端口 $port 已被占用，尝试清理..."
+            # 清理端口占用
+            if [ "$port" = "8000" ]; then
+                # 清理API服务进程
+                pkill -f "uvicorn" 2>/dev/null || true
+                pkill -f "src.api.main" 2>/dev/null || true
+                lsof -ti:$port | xargs -r kill -9 2>/dev/null || true
+                sleep 2
+            fi
         elif command -v netstat &> /dev/null && netstat -tlnp 2>/dev/null | grep -q ":$port "; then
-            log "WARNING" "端口 $port 已被占用"
+            log "WARNING" "端口 $port 已被占用，尝试清理..."
+            if [ "$port" = "8000" ]; then
+                pkill -f "uvicorn" 2>/dev/null || true
+                pkill -f "src.api.main" 2>/dev/null || true
+                lsof -ti:$port | xargs -r kill -9 2>/dev/null || true
+                sleep 2
+            fi
         else
             log "SUCCESS" "端口 $port 可用"
         fi
@@ -672,7 +686,30 @@ except ImportError as e:
     # 初始化数据库
     log "INFO" "初始化数据库..."
     if [ -f "$PROJECT_ROOT/alembic.ini" ]; then
-        python3 -m alembic upgrade head 2>"$LOG_FILE" || log "WARNING" "数据库迁移失败，可能需要手动处理"
+        if [ "$db_type" = "sqlite" ]; then
+            # 为开发模式创建SQLite配置
+            log "INFO" "创建SQLite开发环境配置..."
+            
+            # 创建开发用的alembic配置
+            cp "$PROJECT_ROOT/alembic.ini" "$PROJECT_ROOT/alembic.dev.ini"
+            
+            # 修改数据库URL为SQLite
+            sed -i 's|sqlalchemy.url = postgresql://.*|sqlalchemy.url = sqlite:///./fund_reports_dev.db|' "$PROJECT_ROOT/alembic.dev.ini"
+            
+            # 设置环境变量
+            export DATABASE_URL="sqlite:///./fund_reports_dev.db"
+            
+            # 检查是否存在迁移文件
+            if [ -d "$PROJECT_ROOT/migrations" ] && [ -n "$(ls -A $PROJECT_ROOT/migrations/versions/ 2>/dev/null)" ]; then
+                # 使用开发配置进行迁移
+                python3 -m alembic -c alembic.dev.ini upgrade head 2>"$LOG_FILE" || log "WARNING" "SQLite数据库迁移失败，可能需要手动处理"
+            else
+                log "INFO" "未找到迁移文件，跳过数据库迁移"
+            fi
+        else
+            # 使用默认配置（PostgreSQL）
+            python3 -m alembic upgrade head 2>"$LOG_FILE" || log "WARNING" "数据库迁移失败，可能需要手动处理"
+        fi
     else
         log "INFO" "未找到alembic.ini，跳过数据库迁移"
     fi
@@ -680,12 +717,37 @@ except ImportError as e:
     # 启动API服务
     log "INFO" "启动API服务..."
     
+    # 检查端口占用
+    if lsof -i :8000 >/dev/null 2>&1; then
+        log "WARNING" "端口8000已被占用，尝试清理..."
+        # 更强的清理方式
+        pkill -f "uvicorn" 2>/dev/null || true
+        pkill -f "src.api.main" 2>/dev/null || true
+        lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
+        sleep 3
+        
+        # 再次检查
+        if lsof -i :8000 >/dev/null 2>&1; then
+            log "ERROR" "端口8000无法清理，请手动停止占用进程"
+            lsof -i :8000
+            return 1
+        else
+            log "SUCCESS" "端口8000清理成功"
+        fi
+    fi
+    
     # 创建启动脚本
     cat > "$PROJECT_ROOT/start_api.sh" << EOF
 #!/bin/bash
 cd "$(dirname "\$0")"
 export PATH="\$HOME/.local/bin:\$PATH"
 export PYTHONPATH="\$(pwd):\$PYTHONPATH"
+
+# 设置开发环境的数据库配置
+if [ -f "alembic.dev.ini" ]; then
+    export DATABASE_URL="sqlite:///./fund_reports_dev.db"
+fi
+
 python3 -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 EOF
     chmod +x "$PROJECT_ROOT/start_api.sh"
