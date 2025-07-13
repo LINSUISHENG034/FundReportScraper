@@ -84,10 +84,15 @@ def get_scraper(request: Request) -> CSRCFundReportScraper:
 # 导入路由模块
 try:
     from src.api.routes import fund_reports
+    from src.api.routes import reports_v2, downloads  # V2 API路由
     from src.api.schemas import HealthResponse
 
-    # 注册路由
-    app.include_router(fund_reports.router) # 新的解耦路由
+    # 注册V1路由（向后兼容）
+    app.include_router(fund_reports.router, tags=["基金报告(V1)"])  # 旧版路由
+
+    # 注册V2路由（新的RESTful设计）
+    app.include_router(reports_v2.router, tags=["报告搜索(V2)"])  # 新的报告搜索API
+    app.include_router(downloads.router, tags=["下载任务(V2)"])   # 新的下载任务API
 
     ROUTES_AVAILABLE = True
 except ImportError as e:
