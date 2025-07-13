@@ -227,17 +227,19 @@ class CSRCFundReportScraper(BaseScraper):
         按照验证结果构建aoData参数
         Build aoData parameters based on validated implementation
         """
-        # 报告类型代码映射（基于真实测试验证）
-        report_type_mapping = {
-            ReportType.QUARTERLY: NewReportType.QUARTERLY_Q1.value,    # 第一季度报告
-            ReportType.SEMI_ANNUAL: NewReportType.SEMI_ANNUAL.value,   # 中期报告
-            ReportType.ANNUAL: NewReportType.ANNUAL.value              # 年度报告
-        }
-
         display_start = (page - 1) * page_size
 
-        # 获取报告类型代码
-        report_type_code = report_type_mapping.get(report_type, NewReportType.QUARTERLY_Q1.value)
+        # 直接使用新的报告类型枚举值
+        if isinstance(report_type, NewReportType):
+            report_type_code = report_type.value
+        else:
+            # 向后兼容旧的ReportType
+            report_type_mapping = {
+                ReportType.QUARTERLY: NewReportType.QUARTERLY_Q1.value,
+                ReportType.SEMI_ANNUAL: NewReportType.SEMI_ANNUAL.value,
+                ReportType.ANNUAL: NewReportType.ANNUAL.value
+            }
+            report_type_code = report_type_mapping.get(report_type, NewReportType.QUARTERLY_Q1.value)
 
         # 处理特殊情况：基金产品资料概要需要空的reportYear
         report_year = "" if report_type_code == NewReportType.FUND_PROFILE.value else str(year)
@@ -430,8 +432,36 @@ class CSRCFundReportScraper(BaseScraper):
         try:
             url = f"{self.instance_url}?instanceid={upload_info_id}"
 
-            # 使用支持重定向的请求
-            response = await self.get(url, follow_redirects=True)
+            bound_logger.info(
+                "csrc_scraper.download_xbrl.request_url",
+                url=url
+            )
+
+            # 使用专门的下载会话，确保重定向处理正确
+            if not self.session:
+                await self.start_session()
+
+            # 直接使用session.get，确保重定向被正确处理
+            response = await self.session.get(url)
+
+            bound_logger.info(
+                "csrc_scraper.download_xbrl.response_received",
+                status_code=response.status_code,
+                content_type=response.headers.get("content-type"),
+                content_length=response.headers.get("content-length"),
+                final_url=str(response.url),
+                is_redirect=str(response.url) != url
+            )
+
+            # 检查响应状态
+            if response.status_code != 200:
+                bound_logger.error(
+                    "csrc_scraper.download_xbrl.http_error",
+                    status_code=response.status_code,
+                    response_text=response.text[:200]
+                )
+                raise Exception(f"HTTP {response.status_code}: {response.text[:100]}")
+
             content = response.content
 
             # 检查是否是有效的XBRL内容
@@ -442,10 +472,22 @@ class CSRCFundReportScraper(BaseScraper):
                     content_preview=content[:50]
                 )
 
+            # 检查内容类型
+            content_type = response.headers.get("content-type", "").lower()
+            if "xml" not in content_type and "xbrl" not in content_type:
+                # 检查内容是否以XML开头
+                content_str = content.decode('utf-8', errors='ignore')[:200]
+                if not content_str.strip().startswith('<?xml'):
+                    bound_logger.warning(
+                        "csrc_scraper.download_xbrl.unexpected_content_type",
+                        content_type=content_type,
+                        content_preview=content_str[:100]
+                    )
+
             bound_logger.info(
                 "csrc_scraper.download_xbrl.success",
                 content_size=len(content),
-                content_type=response.headers.get("content-type"),
+                content_type=content_type,
                 final_url=str(response.url)
             )
 

@@ -1,0 +1,10 @@
+{
+    "search_criteria": {
+        "year": 2024,
+        "report_type": "FB010010",
+        "fund_type": "6020-6050",
+        "fund_company_short_name": "工银瑞信"
+    },
+    "max_concurrent": 3,
+    "save_dir": "data/test_download"
+}

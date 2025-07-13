@@ -208,56 +208,55 @@ class FundReportService:
             fund_code=report.get('fundCode', 'Unknown'),
             upload_info_id=report.get('uploadInfoId', 'Unknown')
         )
-        
+
         bound_logger.info("fund_report_service.download_report.start")
-        
+
         try:
             upload_info_id = report['uploadInfoId']
             fund_code = report['fundCode']
-            
-            # 构建下载URL（使用验证的正确端点）
-            download_url = f"{self.scraper.instance_url}?instanceid={upload_info_id}"
-            
+
+            # 使用爬虫的下载方法（已修复重定向问题）
+            content = await self.scraper.download_xbrl_content(upload_info_id)
+
             # 生成文件名
             timestamp = int(time.time())
             filename = f"{fund_code}_REPORT_{timestamp}.xbrl"
             file_path = save_dir / filename
-            
-            # 下载文件
-            response = await self.scraper.session.get(download_url)
-            
-            if response.status_code == 200:
-                content = response.content
-                
-                # 保存文件
-                save_dir.mkdir(parents=True, exist_ok=True)
-                with open(file_path, 'wb') as f:
-                    f.write(content)
-                
+
+            # 保存文件
+            save_dir.mkdir(parents=True, exist_ok=True)
+            with open(file_path, 'wb') as f:
+                f.write(content)
+
+            # 验证文件是否成功保存
+            if file_path.exists() and file_path.stat().st_size > 0:
                 bound_logger.info(
                     "fund_report_service.download_report.success",
                     filename=filename,
-                    file_size=len(content)
+                    file_size=len(content),
+                    saved_size=file_path.stat().st_size
                 )
-                
+
                 return {
                     "success": True,
                     "filename": filename,
                     "file_path": str(file_path),
                     "file_size": len(content),
-                    "fund_code": fund_code
+                    "fund_code": fund_code,
+                    "upload_info_id": upload_info_id
                 }
             else:
                 bound_logger.error(
-                    "fund_report_service.download_report.http_error",
-                    status_code=response.status_code
+                    "fund_report_service.download_report.save_failed",
+                    filename=filename,
+                    content_size=len(content)
                 )
                 return {
                     "success": False,
-                    "error": f"HTTP {response.status_code}",
+                    "error": "文件保存失败",
                     "fund_code": fund_code
                 }
-                
+
         except Exception as e:
             bound_logger.error(
                 "fund_report_service.download_report.error",
@@ -346,6 +345,113 @@ class FundReportService:
                     "success": 0,
                     "failed": len(reports),
                     "duration": 0
+                }
+            }
+
+    async def enhanced_batch_download(
+        self,
+        criteria: FundSearchCriteria,
+        save_dir: Path,
+        max_concurrent: int = 3,
+        max_reports: Optional[int] = None
+    ) -> Dict:
+        """
+        增强的批量下载功能
+        基于验证的实现，支持搜索+下载一体化
+        Enhanced batch download based on validated implementation
+        """
+        bound_logger = logger.bind(
+            criteria=criteria.get_description(),
+            save_dir=str(save_dir),
+            max_concurrent=max_concurrent,
+            max_reports=max_reports
+        )
+
+        bound_logger.info("fund_report_service.enhanced_batch_download.start")
+
+        try:
+            start_time = time.time()
+
+            # 第一步：搜索所有符合条件的报告
+            bound_logger.info("fund_report_service.enhanced_batch_download.searching")
+            search_result = await self.search_all_pages(criteria)
+
+            if not search_result["success"]:
+                return {
+                    "success": False,
+                    "error": f"搜索失败: {search_result.get('error', 'Unknown error')}",
+                    "statistics": {
+                        "total": 0,
+                        "success": 0,
+                        "failed": 0,
+                        "duration": time.time() - start_time
+                    }
+                }
+
+            all_reports = search_result["data"]
+
+            # 限制下载数量
+            if max_reports and len(all_reports) > max_reports:
+                all_reports = all_reports[:max_reports]
+                bound_logger.info(
+                    "fund_report_service.enhanced_batch_download.limited",
+                    original_count=len(search_result["data"]),
+                    limited_count=len(all_reports)
+                )
+
+            if not all_reports:
+                return {
+                    "success": True,
+                    "message": "没有找到符合条件的报告",
+                    "statistics": {
+                        "total": 0,
+                        "success": 0,
+                        "failed": 0,
+                        "duration": time.time() - start_time
+                    }
+                }
+
+            bound_logger.info(
+                "fund_report_service.enhanced_batch_download.found_reports",
+                total_reports=len(all_reports)
+            )
+
+            # 第二步：批量下载
+            bound_logger.info("fund_report_service.enhanced_batch_download.downloading")
+            download_result = await self.batch_download(all_reports, save_dir, max_concurrent)
+
+            # 合并结果
+            total_duration = time.time() - start_time
+            download_result["statistics"]["duration"] = total_duration
+            download_result["search_info"] = {
+                "criteria": criteria.get_description(),
+                "total_pages": search_result.get("pagination", {}).get("total_pages", 0),
+                "total_found": len(search_result["data"])
+            }
+
+            bound_logger.info(
+                "fund_report_service.enhanced_batch_download.completed",
+                total_duration=total_duration,
+                success_count=download_result.get("statistics", {}).get("success", 0),
+                failed_count=download_result.get("statistics", {}).get("failed", 0)
+            )
+
+            return download_result
+
+        except Exception as e:
+            bound_logger.error(
+                "fund_report_service.enhanced_batch_download.error",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            return {
+                "success": False,
+                "error": str(e),
+                "statistics": {
+                    "total": 0,
+                    "success": 0,
+                    "failed": 0,
+                    "duration": time.time() - start_time
                 }
             }
 

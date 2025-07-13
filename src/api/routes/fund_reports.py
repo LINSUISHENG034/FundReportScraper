@@ -9,7 +9,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends, Body
 from pydantic import BaseModel
 
 from src.core.logging import get_logger
@@ -23,6 +23,9 @@ from src.main import get_scraper # Import get_scraper from main
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/fund-reports", tags=["基金报告"])
+
+
+
 
 
 def get_fund_report_service(scraper: CSRCFundReportScraper = Depends(get_scraper)) -> FundReportService:
@@ -214,8 +217,8 @@ async def search_all_pages(
 
 @router.post("/batch-download")
 async def batch_download_reports(
-    request: BatchDownloadRequest,
     background_tasks: BackgroundTasks,
+    request: BatchDownloadRequest = Body(...),
     service: FundReportService = Depends(get_fund_report_service)
 ) -> dict:
     """
@@ -343,6 +346,88 @@ async def get_fund_types() -> dict:
             for ft in FundType
         ]
     }
+
+
+@router.post("/enhanced-batch-download")
+async def enhanced_batch_download(
+    request: BatchDownloadRequest = Body(...),
+    service: FundReportService = Depends(get_fund_report_service)
+) -> dict:
+    """
+    增强的批量下载功能
+    基于验证实现的搜索+下载一体化功能
+    Enhanced batch download with integrated search and download
+    """
+    bound_logger = logger.bind(
+        year=request.search_criteria.year,
+        report_type=request.search_criteria.report_type,
+        max_concurrent=request.max_concurrent
+    )
+
+    bound_logger.info("api.fund_reports.enhanced_batch_download.start")
+
+    try:
+        # 验证参数
+        try:
+            report_type_enum = ReportType(request.search_criteria.report_type)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"无效的报告类型: {request.search_criteria.report_type}"
+            )
+
+        fund_type_enum = None
+        if request.search_criteria.fund_type:
+            try:
+                fund_type_enum = FundType(request.search_criteria.fund_type)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"无效的基金类型: {request.search_criteria.fund_type}"
+                )
+
+        # 构建搜索条件
+        criteria = FundSearchCriteria(
+            year=request.search_criteria.year,
+            report_type=report_type_enum,
+            fund_type=fund_type_enum,
+            fund_company_short_name=request.search_criteria.fund_company_short_name,
+            fund_code=request.search_criteria.fund_code,
+            fund_short_name=request.search_criteria.fund_short_name,
+            start_upload_date=request.search_criteria.start_upload_date,
+            end_upload_date=request.search_criteria.end_upload_date,
+            page_size=100  # 使用较大的页面大小提高效率
+        )
+
+        # 设置保存目录
+        save_dir = Path(request.save_dir) if request.save_dir else Path("data/enhanced_downloads")
+
+        # 执行增强的批量下载
+        result = await service.enhanced_batch_download(
+            criteria=criteria,
+            save_dir=save_dir,
+            max_concurrent=request.max_concurrent,
+            max_reports=getattr(request, 'max_reports', None)
+        )
+
+        bound_logger.info(
+            "api.fund_reports.enhanced_batch_download.success",
+            success_count=result.get("statistics", {}).get("success", 0),
+            failed_count=result.get("statistics", {}).get("failed", 0),
+            duration=result.get("statistics", {}).get("duration", 0)
+        )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        bound_logger.error(
+            "api.fund_reports.enhanced_batch_download.error",
+            error=str(e),
+            error_type=type(e).__name__
+        )
+        raise HTTPException(status_code=500, detail=f"增强批量下载失败: {str(e)}")
 
 
 @router.get("/presets")
