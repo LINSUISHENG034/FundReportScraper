@@ -16,10 +16,15 @@ from src.core.fund_search_parameters import (
     FundSearchCriteria, ReportType, FundType
 )
 from src.services.fund_report_service import FundReportService
+from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
+from src.main import get_scraper
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/reports", tags=["报告搜索"])
+
+def get_fund_report_service(scraper: CSRCFundReportScraper = Depends(get_scraper)) -> FundReportService:
+    return FundReportService(scraper)
 
 
 # Pydantic 响应模型
@@ -33,9 +38,9 @@ class PaginationInfo(BaseModel):
 
 class ReportItem(BaseModel):
     """报告项目"""
-    upload_info_id: str = Field(..., description="上传信息ID，用于下载")
+    upload_info_id: int = Field(..., description="上传信息ID，用于下载")
     fund_code: str = Field(..., description="基金代码")
-    fund_id: str = Field(..., description="基金ID")
+    fund_id: int = Field(..., description="基金ID")
     fund_short_name: str = Field(..., description="基金简称")
     organ_name: str = Field(..., description="管理人名称")
     report_send_date: str = Field(..., description="报告发送日期")
@@ -50,14 +55,7 @@ class ReportSearchResponse(BaseModel):
     search_criteria: dict = Field(..., description="搜索条件")
 
 
-def get_fund_report_service() -> FundReportService:
-    """
-    获取基金报告服务实例
-    Get fund report service instance
-    """
-    from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
-    scraper = CSRCFundReportScraper()
-    return FundReportService(scraper)
+
 
 
 @router.get("", response_model=ReportSearchResponse)

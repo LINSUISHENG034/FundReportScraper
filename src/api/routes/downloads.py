@@ -9,11 +9,13 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request
 from pydantic import BaseModel, Field
 
 from src.core.logging import get_logger
+from src.main import get_scraper
 from src.services.fund_report_service import FundReportService
+from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
 from src.services.download_task_service import DownloadTaskService, DownloadTask, TaskStatus
 
 logger = get_logger(__name__)
@@ -24,7 +26,7 @@ router = APIRouter(prefix="/api/v1/downloads", tags=["下载任务"])
 # Pydantic 请求模型
 class DownloadTaskCreateRequest(BaseModel):
     """创建下载任务请求"""
-    report_ids: List[str] = Field(..., description="报告ID列表 (upload_info_id)", min_items=1)
+    report_ids: List[int] = Field(..., description="报告ID列表 (upload_info_id)", min_items=1)
     save_dir: Optional[str] = Field("data/downloads", description="保存目录")
     max_concurrent: Optional[int] = Field(3, ge=1, le=10, description="最大并发数")
 
@@ -69,16 +71,12 @@ class DownloadTaskStatusResponse(BaseModel):
     task_status: TaskStatusInfo = Field(..., description="任务状态详情")
 
 
-def get_fund_report_service() -> FundReportService:
-    """获取基金报告服务实例"""
-    from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
-    scraper = CSRCFundReportScraper()
+def get_fund_report_service(scraper: CSRCFundReportScraper = Depends(get_scraper)) -> FundReportService:
     return FundReportService(scraper)
 
 
-def get_download_task_service() -> DownloadTaskService:
-    """获取下载任务服务实例"""
-    return DownloadTaskService()
+def get_download_task_service(request: Request) -> DownloadTaskService:
+    return request.app.state.download_task_service
 
 
 @router.post("", response_model=DownloadTaskCreateResponse, status_code=202)

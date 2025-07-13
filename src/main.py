@@ -17,6 +17,7 @@ from src.core.config import settings
 from src.core.logging import configure_logging, get_logger
 from src.models import get_db_session, init_database
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
+from src.services.download_task_service import DownloadTaskService
 
 # Configure logging
 configure_logging(
@@ -36,13 +37,9 @@ async def lifespan(app: FastAPI):
     app.state.http_client = httpx.AsyncClient()
     logger.info("application.http_client.created")
 
-    # Initialize database
-    try:
-        init_database()
-        logger.info("application.database.initialized")
-    except Exception as e:
-        logger.error("application.database.initialization_failed", error=str(e))
-        raise
+    # Create services
+    app.state.download_task_service = DownloadTaskService()
+    logger.info("application.services.created")
     
     yield
     
