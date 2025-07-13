@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基金报告查询平台 - 让投资更智能</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/user.css" rel="stylesheet">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-gradient-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-graph-up-arrow"></i>
+                基金报告查询平台
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#search" data-tab="search">
+                            <i class="bi bi-search"></i> 基金搜索
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#reports" data-tab="reports">
+                            <i class="bi bi-file-earmark-text"></i> 报告分析
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#data" data-tab="data">
+                            <i class="bi bi-database"></i> 数据中心
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#tools" data-tab="tools">
+                            <i class="bi bi-tools"></i> 实用工具
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="../admin/" target="_blank">
+                            <i class="bi bi-gear-fill"></i> 管理后台
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容区域 -->
+    <div class="container-fluid mt-4">
+        <!-- 基金搜索页面 -->
+        <div id="search-tab" class="tab-content active">
+            <div class="row">
+                <div class="col-12">
+                    <div class="page-header">
+                        <h2><i class="bi bi-search"></i> 智能基金搜索</h2>
+                        <p class="text-muted">查找您感兴趣的基金产品，获取详细的基金信息和历史数据</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 搜索表单 -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card search-card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-funnel-fill"></i> 搜索条件</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="fund-search-form">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label for="fundCode" class="form-label">基金代码</label>
+                                        <input type="text" class="form-control" id="fundCode" placeholder="如：000001">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="fundName" class="form-label">基金名称</label>
+                                        <input type="text" class="form-control" id="fundName" placeholder="支持模糊搜索">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="fundCompany" class="form-label">基金公司</label>
+                                        <input type="text" class="form-control" id="fundCompany" placeholder="基金管理公司">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="fundType" class="form-label">基金类型</label>
+                                        <select class="form-select" id="fundType">
+                                            <option value="">全部类型</option>
+                                            <option value="股票型">股票型</option>
+                                            <option value="混合型">混合型</option>
+                                            <option value="债券型">债券型</option>
+                                            <option value="货币型">货币型</option>
+                                            <option value="指数型">指数型</option>
+                                            <option value="QDII">QDII</option>
+                                            <option value="FOF">FOF</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-search"></i> 搜索基金
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary ms-2" onclick="resetSearchForm()">
+                                            <i class="bi bi-arrow-clockwise"></i> 重置
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快速搜索 -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-lightning-fill"></i> 热门推荐</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="quick-search-item" onclick="quickSearch('热门基金')">
+                                        <i class="bi bi-fire"></i>
+                                        <h6>热门基金</h6>
+                                        <p>当前最受关注的基金产品</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="quick-search-item" onclick="quickSearch('新发基金')">
+                                        <i class="bi bi-star-fill"></i>
+                                        <h6>新发基金</h6>
+                                        <p>最新成立的基金产品</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="quick-search-item" onclick="quickSearch('高分红基金')">
+                                        <i class="bi bi-cash-coin"></i>
+                                        <h6>高分红基金</h6>
+                                        <p>分红收益较高的基金</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 搜索结果 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5><i class="bi bi-list-ul"></i> 搜索结果</h5>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" onclick="exportResults()" disabled id="exportBtn">
+                                    <i class="bi bi-download"></i> 导出
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="searchResults">
+                                <div class="empty-state">
+                                    <i class="bi bi-search"></i>
+                                    <h4>开始搜索基金</h4>
+                                    <p>输入基金代码或名称，获取详细的基金信息和分析报告</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 报告分析页面 -->
+        <div id="reports-tab" class="tab-content">
+            <div class="row">
+                <div class="col-12">
+                    <div class="page-header">
+                        <h2><i class="bi bi-file-earmark-text"></i> 基金报告分析</h2>
+                        <p class="text-muted">深入分析基金报告，了解基金的投资策略和业绩表现</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 报告筛选 -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-funnel-fill"></i> 报告筛选</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="report-search-form">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label for="reportFundCode" class="form-label">基金代码</label>
+                                        <input type="text" class="form-control" id="reportFundCode" placeholder="如：000001">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="reportType" class="form-label">报告类型</label>
+                                        <select class="form-select" id="reportType">
+                                            <option value="">全部报告</option>
+                                            <option value="annual">年度报告</option>
+                                            <option value="semi_annual">中期报告</option>
+                                            <option value="quarterly">季度报告</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="reportYear" class="form-label">报告年份</label>
+                                        <select class="form-select" id="reportYear">
+                                            <option value="">全部年份</option>
+                                            <option value="2024">2024年</option>
+                                            <option value="2023">2023年</option>
+                                            <option value="2022">2022年</option>
+                                            <option value="2021">2021年</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 d-flex align-items-end">
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            <i class="bi bi-search"></i> 查询报告
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 报告结果 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5><i class="bi bi-list-ul"></i> 报告列表</h5>
+                            <div>
+                                <button class="btn btn-sm btn-outline-success" onclick="generateAnalysis()" disabled id="analysisBtn">
+                                    <i class="bi bi-graph-up-arrow"></i> 生成分析
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="reportResults">
+                                <div class="empty-state">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                    <h4>选择基金查看报告</h4>
+                                    <p>输入基金代码，获取该基金的定期报告和分析数据</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据中心页面 -->
+        <div id="data-tab" class="tab-content">
+            <div class="row">
+                <div class="col-12">
+                    <div class="page-header">
+                        <h2><i class="bi bi-database"></i> 数据中心</h2>
+                        <p class="text-muted">管理和导出您收集的基金数据</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据统计 -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="bi bi-graph-up text-primary"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="totalFunds">0</h3>
+                            <p>基金总数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="bi bi-file-earmark-text text-success"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="totalReports">0</h3>
+                            <p>报告总数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="bi bi-calendar-event text-warning"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="latestDate">-</h3>
+                            <p>最新数据</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="bi bi-gear text-info"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="activeTasks">0</h3>
+                            <p>活跃任务</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据导出 -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-download"></i> 数据导出</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="export-option" onclick="exportAllData()">
+                                        <i class="bi bi-database-fill-down"></i>
+                                        <h6>导出全部数据</h6>
+                                        <p>下载所有基金和报告数据</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="export-option" onclick="exportRecentData()">
+                                        <i class="bi bi-clock-history"></i>
+                                        <h6>导出最新数据</h6>
+                                        <p>下载最近30天的数据</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="export-option" onclick="showCustomExport()">
+                                        <i class="bi bi-sliders"></i>
+                                        <h6>自定义导出</h6>
+                                        <p>按条件筛选导出数据</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 我的数据 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5><i class="bi bi-folder2-open"></i> 我的数据</h5>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" onclick="refreshMyData()">
+                                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="myDataResults">
+                                <div class="empty-state">
+                                    <i class="bi bi-folder2-open"></i>
+                                    <h4>暂无数据</h4>
+                                    <p>开始搜索基金或创建采集任务来获取数据</p>
+                                    <button class="btn btn-primary" onclick="switchTab('search')">
+                                        <i class="bi bi-search"></i> 开始搜索
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 实用工具页面 -->
+        <div id="tools-tab" class="tab-content">
+            <div class="row">
+                <div class="col-12">
+                    <div class="page-header">
+                        <h2><i class="bi bi-tools"></i> 实用工具</h2>
+                        <p class="text-muted">系统工具和实用功能</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="tool-card" onclick="checkSystemHealth()">
+                        <div class="tool-icon">
+                            <i class="bi bi-heart-pulse"></i>
+                        </div>
+                        <div class="tool-content">
+                            <h5>系统健康检查</h5>
+                            <p>检查平台运行状态和各项服务</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="tool-card" onclick="openAPIDoc()">
+                        <div class="tool-icon">
+                            <i class="bi bi-book"></i>
+                        </div>
+                        <div class="tool-content">
+                            <h5>API文档</h5>
+                            <p>查看完整的接口文档和使用说明</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="tool-card" onclick="downloadSampleData()">
+                        <div class="tool-icon">
+                            <i class="bi bi-download"></i>
+                        </div>
+                        <div class="tool-content">
+                            <h5>示例数据</h5>
+                            <p>下载示例基金数据文件</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="tool-card" onclick="createDataTask()">
+                        <div class="tool-icon">
+                            <i class="bi bi-plus-circle"></i>
+                        </div>
+                        <div class="tool-content">
+                            <h5>创建数据采集任务</h5>
+                            <p>批量采集基金数据和报告</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="tool-card" onclick="generateReport()">
+                        <div class="tool-icon">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div class="tool-content">
+                            <h5>生成分析报告</h5>
+                            <p>基于采集数据生成投资分析报告</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框 -->
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">详细信息</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    <!-- 动态内容 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自定义导出模态框 -->
+    <div class="modal fade" id="customExportModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">自定义数据导出</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="custom-export-form">
+                        <div class="mb-3">
+                            <label for="exportDataType" class="form-label">数据类型</label>
+                            <select class="form-select" id="exportDataType">
+                                <option value="funds">基金信息</option>
+                                <option value="reports">报告数据</option>
+                                <option value="both">全部数据</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="exportFundCodes" class="form-label">基金代码（可选）</label>
+                            <textarea class="form-control" id="exportFundCodes" rows="3" 
+                                    placeholder="输入基金代码，每行一个&#10;留空则导出所有基金"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="exportStartDate" class="form-label">开始日期</label>
+                                <input type="date" class="form-control" id="exportStartDate">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="exportEndDate" class="form-label">结束日期</label>
+                                <input type="date" class="form-control" id="exportEndDate">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="executeCustomExport()">
+                        <i class="bi bi-download"></i> 导出
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载提示 -->
+    <div id="loadingOverlay" class="loading-overlay d-none">
+        <div class="loading-content">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <p class="mt-2" id="loadingText">正在处理请求...</p>
+        </div>
+    </div>
+
+    <!-- 脚本 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/user.js"></script>
+</body>
+</html>

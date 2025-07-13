@@ -38,7 +38,9 @@
       "Bash(./show_improvements.sh:*)",
       "Bash(fuser:*)",
       "Bash(./show_dual_interface.sh:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(echo:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

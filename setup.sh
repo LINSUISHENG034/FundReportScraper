@@ -42,7 +42,7 @@ show_menu() {
     echo
     echo "🛠️ 管理相关："
     echo "  6) 🏥 系统健康检查"
-    echo "  7) 📊 启动Web管理界面"
+    echo "  7) 🌐 访问前端界面"
     echo "  8) 📖 查看使用文档"
     echo
     echo "  9) 🚪 退出"
@@ -83,13 +83,22 @@ execute_choice() {
             fi
             ;;
         7)
-            echo -e "${BLUE}启动Web管理界面...${NC}"
-            if command -v streamlit &> /dev/null; then
-                streamlit run gui/web_admin.py
-            else
-                echo -e "${YELLOW}请先安装streamlit: pip install streamlit${NC}"
-                echo "然后运行: streamlit run gui/web_admin.py"
-            fi
+            echo -e "${BLUE}访问前端界面...${NC}"
+            echo -e "${GREEN}🎯 前端界面已准备就绪！${NC}"
+            echo
+            echo "📱 用户界面:"
+            echo "   🔗 在浏览器打开: file://$(pwd)/frontend/user/index.html"
+            echo "   📋 功能: 基金搜索、报告查询、数据导出"
+            echo
+            echo "👨‍💼 管理界面:"
+            echo "   🔗 在浏览器打开: file://$(pwd)/frontend/admin/index.html" 
+            echo "   📋 功能: 系统监控、任务管理、数据管理"
+            echo
+            echo "🧪 测试界面:"
+            echo "   🔗 在浏览器打开: file://$(pwd)/frontend/test.html"
+            echo "   📋 功能: 前后端联动测试"
+            echo
+            echo "💡 提示: 请确保API服务运行在 http://localhost:8000"
             ;;
         8)
             echo -e "${BLUE}查看使用文档...${NC}"
@@ -105,8 +114,8 @@ execute_choice() {
             echo
             echo "💡 在线文档："
             echo "   API文档: http://localhost:8000/docs"
-            echo "   用户界面: http://localhost:8000/"
-            echo "   管理后台: http://localhost:8000/admin"
+            echo "   用户界面: file://$(pwd)/frontend/user/index.html"
+            echo "   管理后台: file://$(pwd)/frontend/admin/index.html"
             ;;
         9)
             echo -e "${GREEN}感谢使用基金报告平台！${NC}"
