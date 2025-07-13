@@ -449,3 +449,274 @@ class DownloadTaskService:
                 "status_counts": {},
                 "active_tasks": 0
             }
+
+    # 同步版本的方法，用于Celery任务
+    def get_task_sync(self, task_id: str) -> Optional[DownloadTask]:
+        """获取指定的下载任务 (同步版本)"""
+        bound_logger = logger.bind(task_id=task_id, use_database=self.use_database)
+        bound_logger.info("download_task_service.get_task_sync.start")
+
+        try:
+            if self.use_database:
+                from src.models.download_task import DownloadTaskModel
+
+                with self._get_session() as session:
+                    db_task = session.query(DownloadTaskModel).filter_by(task_id=task_id).first()
+
+                    if db_task:
+                        task = db_task.to_download_task()
+                        bound_logger.info(
+                            "download_task_service.get_task_sync.found",
+                            status=task.status.value,
+                            progress=f"{task.completed_count}/{task.total_count}",
+                            db_id=db_task.id
+                        )
+                        return task
+                    else:
+                        bound_logger.warning("download_task_service.get_task_sync.not_found")
+                        return None
+            else:
+                task = self._tasks.get(task_id)
+
+                if task:
+                    bound_logger.info(
+                        "download_task_service.get_task_sync.found",
+                        status=task.status.value,
+                        progress=f"{task.completed_count}/{task.total_count}"
+                    )
+                else:
+                    bound_logger.warning("download_task_service.get_task_sync.not_found")
+
+                return task
+
+        except Exception as e:
+            bound_logger.error(
+                "download_task_service.get_task_sync.error",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            raise
+
+    def update_task_status_sync(
+        self,
+        task_id: str,
+        status: TaskStatus,
+        started_at: Optional[datetime] = None,
+        completed_at: Optional[datetime] = None,
+        error_message: Optional[str] = None
+    ) -> bool:
+        """更新任务状态 (同步版本)"""
+        bound_logger = logger.bind(
+            task_id=task_id,
+            new_status=status.value,
+            use_database=self.use_database
+        )
+
+        bound_logger.info("download_task_service.update_status_sync.start")
+
+        try:
+            if self.use_database:
+                from src.models.download_task import DownloadTaskModel
+
+                with self._get_session() as session:
+                    db_task = session.query(DownloadTaskModel).filter_by(task_id=task_id).first()
+                    if not db_task:
+                        bound_logger.warning("download_task_service.update_status_sync.task_not_found")
+                        return False
+
+                    old_status = db_task.status
+                    db_task.status = status
+
+                    if started_at:
+                        db_task.started_at = started_at
+                    if completed_at:
+                        db_task.completed_at = completed_at
+                    if error_message:
+                        db_task.error_message = error_message
+
+                    session.commit()
+
+                    bound_logger.info(
+                        "download_task_service.update_status_sync.success",
+                        old_status=old_status.value,
+                        new_status=status.value,
+                        db_id=db_task.id
+                    )
+            else:
+                task = self._tasks.get(task_id)
+                if not task:
+                    bound_logger.warning("download_task_service.update_status_sync.task_not_found")
+                    return False
+
+                old_status = task.status
+                task.status = status
+
+                if started_at:
+                    task.started_at = started_at
+                if completed_at:
+                    task.completed_at = completed_at
+                if error_message:
+                    task.error_message = error_message
+
+                bound_logger.info(
+                    "download_task_service.update_status_sync.success",
+                    old_status=old_status.value,
+                    new_status=status.value
+                )
+
+            return True
+
+        except Exception as e:
+            bound_logger.error(
+                "download_task_service.update_status_sync.error",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            raise
+
+    def update_task_progress_sync(
+        self,
+        task_id: str,
+        completed_count: Optional[int] = None,
+        failed_count: Optional[int] = None,
+        completed_ids: Optional[List[str]] = None,
+        failed_results: Optional[List[Dict[str, str]]] = None
+    ) -> bool:
+        """更新任务进度 (同步版本)"""
+        bound_logger = logger.bind(
+            task_id=task_id,
+            completed_count=completed_count,
+            failed_count=failed_count,
+            use_database=self.use_database
+        )
+
+        bound_logger.info("download_task_service.update_progress_sync.start")
+
+        try:
+            if self.use_database:
+                from src.models.download_task import DownloadTaskModel
+
+                with self._get_session() as session:
+                    db_task = session.query(DownloadTaskModel).filter_by(task_id=task_id).first()
+                    if not db_task:
+                        bound_logger.warning("download_task_service.update_progress_sync.task_not_found")
+                        return False
+
+                    if completed_count is not None:
+                        db_task.completed_count = completed_count
+                    if failed_count is not None:
+                        db_task.failed_count = failed_count
+                    if completed_ids is not None:
+                        import json
+                        db_task.completed_ids = json.dumps(completed_ids)
+                    if failed_results is not None:
+                        import json
+                        db_task.failed_results = json.dumps(failed_results)
+
+                    session.commit()
+
+                    progress_percentage = round((db_task.completed_count / db_task.total_count) * 100, 2) if db_task.total_count > 0 else 0.0
+
+                    bound_logger.info(
+                        "download_task_service.update_progress_sync.success",
+                        completed=db_task.completed_count,
+                        failed=db_task.failed_count,
+                        total=db_task.total_count,
+                        percentage=progress_percentage,
+                        db_id=db_task.id
+                    )
+            else:
+                task = self._tasks.get(task_id)
+                if not task:
+                    bound_logger.warning("download_task_service.update_progress_sync.task_not_found")
+                    return False
+
+                if completed_count is not None:
+                    task.completed_count = completed_count
+                if failed_count is not None:
+                    task.failed_count = failed_count
+                if completed_ids is not None:
+                    task.completed_ids = completed_ids
+                if failed_results is not None:
+                    task.failed_results = failed_results
+
+                progress_percentage = round((task.completed_count / task.total_count) * 100, 2) if task.total_count > 0 else 0.0
+
+                bound_logger.info(
+                    "download_task_service.update_progress_sync.success",
+                    completed=task.completed_count,
+                    failed=task.failed_count,
+                    total=task.total_count,
+                    percentage=progress_percentage
+                )
+
+            return True
+
+        except Exception as e:
+            bound_logger.error(
+                "download_task_service.update_progress_sync.error",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            raise
+
+    def create_task_sync(self, task: DownloadTask) -> DownloadTask:
+        """创建新的下载任务 (同步版本)"""
+        bound_logger = logger.bind(
+            task_id=task.task_id,
+            report_count=len(task.report_ids),
+            save_dir=task.save_dir,
+            use_database=self.use_database
+        )
+
+        bound_logger.info("download_task_service.create_task_sync.start")
+
+        try:
+            if self.use_database:
+                from src.models.download_task import DownloadTaskModel
+
+                with self._get_session() as session:
+                    # 检查任务ID唯一性
+                    existing = session.query(DownloadTaskModel).filter_by(task_id=task.task_id).first()
+                    if existing:
+                        bound_logger.warning(
+                            "download_task_service.create_task_sync.already_exists",
+                            existing_id=existing.id
+                        )
+                        return existing.to_download_task()
+
+                    # 创建数据库记录
+                    db_task = DownloadTaskModel.from_download_task(task)
+                    session.add(db_task)
+                    session.commit()
+
+                    total_tasks = session.query(DownloadTaskModel).count()
+
+                    bound_logger.info(
+                        "download_task_service.create_task_sync.success",
+                        total_tasks=total_tasks,
+                        db_id=db_task.id
+                    )
+            else:
+                if task.task_id in self._tasks:
+                    bound_logger.warning(
+                        "download_task_service.create_task_sync.already_exists"
+                    )
+                    return self._tasks[task.task_id]
+
+                self._tasks[task.task_id] = task
+
+                bound_logger.info(
+                    "download_task_service.create_task_sync.success",
+                    total_tasks=len(self._tasks)
+                )
+
+            return task
+
+        except Exception as e:
+            bound_logger.error(
+                "download_task_service.create_task_sync.error",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            raise
