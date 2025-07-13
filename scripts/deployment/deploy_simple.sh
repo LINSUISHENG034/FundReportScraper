@@ -5,8 +5,11 @@ echo "🔍 基金报告平台部署修复测试"
 
 # 设置环境
 export PATH="$HOME/.local/bin:$PATH"
-cd "$(dirname "$0")"
-export PYTHONPATH="$(pwd):$PYTHONPATH"
+# 获取项目根目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
+export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
 
 echo "✅ 当前目录: $(pwd)"
 echo "✅ PYTHONPATH: $PYTHONPATH"
@@ -44,9 +47,11 @@ echo ""
 echo "🚀 启动API服务:"
 cat > start_api.sh << 'EOF'
 #!/bin/bash
-cd "$(dirname "$0")"
+# 获取项目根目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 export PATH="$HOME/.local/bin:$PATH"
-export PYTHONPATH="$(pwd):$PYTHONPATH"
+export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
 python3 -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 EOF
 

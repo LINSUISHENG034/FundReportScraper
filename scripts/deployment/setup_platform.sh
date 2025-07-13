@@ -605,10 +605,13 @@ deploy_development() {
     local temp_test_script="$PROJECT_ROOT/logs/test_import.py"
     
     # 创建临时测试脚本
-    cat > "$temp_test_script" << 'EOF'
+    cat > "$temp_test_script" << EOF
 import sys
 import os
-sys.path.insert(0, os.getcwd())
+# 确保项目根目录在Python路径中
+project_root = "$PROJECT_ROOT"
+sys.path.insert(0, project_root)
+os.chdir(project_root)
 import src.api.main
 print("API模块导入成功")
 EOF

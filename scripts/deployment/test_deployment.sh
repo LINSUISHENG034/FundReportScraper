@@ -25,13 +25,17 @@ done
 
 echo ""
 echo "📁 检查项目结构:"
+# 获取项目根目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
+
 ls -la src/api/ 2>/dev/null || echo "❌ src/api/ 目录不存在"
 
 if [ -f "src/api/main.py" ]; then
     echo "✅ API主文件存在"
     echo "   检查导入:"
-    cd "$(dirname "$0")"
-    export PYTHONPATH="$(pwd):$PYTHONPATH"
+    export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
     
     # 检查具体的导入错误
     echo "   导入详细测试："
