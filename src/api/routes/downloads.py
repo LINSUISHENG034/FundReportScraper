@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 
 from src.core.logging import get_logger
@@ -21,6 +21,9 @@ from src.services.download_task_service import DownloadTaskService, DownloadTask
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/downloads", tags=["下载任务"])
+
+# 全局任务服务实例（在生产环境中应该使用数据库持久化）
+_global_task_service = None
 
 
 # Pydantic 请求模型
@@ -71,12 +74,34 @@ class DownloadTaskStatusResponse(BaseModel):
     task_status: TaskStatusInfo = Field(..., description="任务状态详情")
 
 
+def get_scraper() -> CSRCFundReportScraper:
+    """获取爬虫实例"""
+    from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
+    import httpx
+
+    # 为测试环境创建独立的HTTP客户端
+    session = httpx.AsyncClient(
+        timeout=30.0,
+        follow_redirects=True,
+        headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+    )
+
+    return CSRCFundReportScraper(session=session)
+
+
 def get_fund_report_service(scraper: CSRCFundReportScraper = Depends(get_scraper)) -> FundReportService:
+    """获取基金报告服务实例"""
     return FundReportService(scraper)
 
 
-def get_download_task_service(request: Request) -> DownloadTaskService:
-    return request.app.state.download_task_service
+def get_download_task_service() -> DownloadTaskService:
+    """获取下载任务服务实例（单例模式）"""
+    global _global_task_service
+    if _global_task_service is None:
+        _global_task_service = DownloadTaskService()
+    return _global_task_service
 
 
 @router.post("", response_model=DownloadTaskCreateResponse, status_code=202)
@@ -312,10 +337,51 @@ async def execute_download_task(
         # 执行下载
         from pathlib import Path
         save_dir = Path(task.save_dir)
-        
-        # 模拟报告数据（实际应该从report_ids获取完整报告信息）
-        reports = [{"uploadInfoId": report_id, "fundCode": f"FUND_{i}"} for i, report_id in enumerate(task.report_ids)]
-        
+
+        # 根据report_ids获取完整的报告信息
+        # 注意：report_ids实际上是upload_info_id列表
+        reports = []
+        failed_to_get = []
+
+        for upload_info_id in task.report_ids:
+            try:
+                # 尝试获取报告的完整信息
+                report = await fund_service.get_report_by_upload_id(upload_info_id)
+                if report:
+                    reports.append(report)
+                else:
+                    failed_to_get.append(upload_info_id)
+                    bound_logger.warning(
+                        "downloads.execute_task.report_not_found",
+                        upload_info_id=upload_info_id
+                    )
+            except Exception as e:
+                failed_to_get.append(upload_info_id)
+                bound_logger.error(
+                    "downloads.execute_task.get_report_error",
+                    upload_info_id=upload_info_id,
+                    error=str(e)
+                )
+
+        bound_logger.info(
+            "downloads.execute_task.reports_prepared",
+            total_requested=len(task.report_ids),
+            reports_found=len(reports),
+            failed_to_get=len(failed_to_get),
+            upload_info_ids=task.report_ids[:3]  # 只记录前3个ID
+        )
+
+        # 如果没有找到任何报告，标记任务失败
+        if not reports:
+            await task_service.update_task_status(
+                task_id,
+                TaskStatus.FAILED,
+                completed_at=datetime.utcnow(),
+                error_message="无法获取任何报告信息"
+            )
+            bound_logger.error("downloads.execute_task.no_reports_found")
+            return
+
         # 执行批量下载
         download_result = await fund_service.batch_download(
             reports, save_dir, task.max_concurrent

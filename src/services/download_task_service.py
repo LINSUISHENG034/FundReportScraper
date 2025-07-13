@@ -10,6 +10,9 @@ from enum import Enum
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
 
+from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, desc
+
 from src.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -55,13 +58,49 @@ class DownloadTaskService:
     """
     下载任务服务
     Download Task Service
-    
+
     管理下载任务的生命周期，包括创建、状态更新、进度跟踪等
+    支持内存存储和数据库持久化两种模式
     """
-    
-    def __init__(self):
-        # 使用内存存储任务（生产环境应该使用数据库）
-        self._tasks: Dict[str, DownloadTask] = {}
+
+    def __init__(self, db_url: Optional[str] = None):
+        """
+        初始化下载任务服务
+
+        Args:
+            db_url: 数据库连接URL，如果为None则使用内存存储
+        """
+        self.use_database = db_url is not None
+
+        if self.use_database:
+            # 数据库模式
+            self.engine = create_engine(db_url, echo=False)
+            self._init_database()
+            self._tasks = None  # 不使用内存存储
+        else:
+            # 内存模式（向后兼容）
+            self._tasks: Dict[str, DownloadTask] = {}
+            self.engine = None
+
+    def _init_database(self):
+        """初始化数据库表"""
+        try:
+            from src.models.download_task import create_download_task_table
+            create_download_task_table(self.engine)
+            logger.info("download_task_service.database.initialized")
+        except Exception as e:
+            logger.error(
+                "download_task_service.database.init_error",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            raise
+
+    def _get_session(self) -> Session:
+        """获取数据库会话"""
+        if not self.use_database:
+            raise RuntimeError("Database not configured")
+        return Session(self.engine)
         
     async def create_task(self, task: DownloadTask) -> DownloadTask:
         """
@@ -71,26 +110,49 @@ class DownloadTaskService:
         bound_logger = logger.bind(
             task_id=task.task_id,
             report_count=len(task.report_ids),
-            save_dir=task.save_dir
+            save_dir=task.save_dir,
+            use_database=self.use_database
         )
-        
+
         bound_logger.info("download_task_service.create_task.start")
-        
+
         try:
-            # 验证任务ID唯一性
-            if task.task_id in self._tasks:
-                raise ValueError(f"任务ID已存在: {task.task_id}")
-            
-            # 保存任务
-            self._tasks[task.task_id] = task
-            
-            bound_logger.info(
-                "download_task_service.create_task.success",
-                total_tasks=len(self._tasks)
-            )
-            
+            if self.use_database:
+                # 数据库模式
+                from src.models.download_task import DownloadTaskModel
+
+                with self._get_session() as session:
+                    # 检查任务ID唯一性
+                    existing = session.query(DownloadTaskModel).filter_by(task_id=task.task_id).first()
+                    if existing:
+                        raise ValueError(f"任务ID已存在: {task.task_id}")
+
+                    # 创建数据库记录
+                    db_task = DownloadTaskModel.from_download_task(task)
+                    session.add(db_task)
+                    session.commit()
+
+                    total_tasks = session.query(DownloadTaskModel).count()
+
+                    bound_logger.info(
+                        "download_task_service.create_task.success",
+                        total_tasks=total_tasks,
+                        db_id=db_task.id
+                    )
+            else:
+                # 内存模式
+                if task.task_id in self._tasks:
+                    raise ValueError(f"任务ID已存在: {task.task_id}")
+
+                self._tasks[task.task_id] = task
+
+                bound_logger.info(
+                    "download_task_service.create_task.success",
+                    total_tasks=len(self._tasks)
+                )
+
             return task
-            
+
         except Exception as e:
             bound_logger.error(
                 "download_task_service.create_task.error",
@@ -104,23 +166,44 @@ class DownloadTaskService:
         获取指定的下载任务
         Get a specific download task
         """
-        bound_logger = logger.bind(task_id=task_id)
+        bound_logger = logger.bind(task_id=task_id, use_database=self.use_database)
         bound_logger.info("download_task_service.get_task.start")
-        
+
         try:
-            task = self._tasks.get(task_id)
-            
-            if task:
-                bound_logger.info(
-                    "download_task_service.get_task.found",
-                    status=task.status.value,
-                    progress=f"{task.completed_count}/{task.total_count}"
-                )
+            if self.use_database:
+                # 数据库模式
+                from src.models.download_task import DownloadTaskModel
+
+                with self._get_session() as session:
+                    db_task = session.query(DownloadTaskModel).filter_by(task_id=task_id).first()
+
+                    if db_task:
+                        task = db_task.to_download_task()
+                        bound_logger.info(
+                            "download_task_service.get_task.found",
+                            status=task.status.value,
+                            progress=f"{task.completed_count}/{task.total_count}",
+                            db_id=db_task.id
+                        )
+                        return task
+                    else:
+                        bound_logger.warning("download_task_service.get_task.not_found")
+                        return None
             else:
-                bound_logger.warning("download_task_service.get_task.not_found")
-            
-            return task
-            
+                # 内存模式
+                task = self._tasks.get(task_id)
+
+                if task:
+                    bound_logger.info(
+                        "download_task_service.get_task.found",
+                        status=task.status.value,
+                        progress=f"{task.completed_count}/{task.total_count}"
+                    )
+                else:
+                    bound_logger.warning("download_task_service.get_task.not_found")
+
+                return task
+
         except Exception as e:
             bound_logger.error(
                 "download_task_service.get_task.error",
@@ -130,8 +213,8 @@ class DownloadTaskService:
             raise
     
     async def update_task_status(
-        self, 
-        task_id: str, 
+        self,
+        task_id: str,
         status: TaskStatus,
         started_at: Optional[datetime] = None,
         completed_at: Optional[datetime] = None,
@@ -143,35 +226,66 @@ class DownloadTaskService:
         """
         bound_logger = logger.bind(
             task_id=task_id,
-            new_status=status.value
+            new_status=status.value,
+            use_database=self.use_database
         )
-        
+
         bound_logger.info("download_task_service.update_status.start")
-        
+
         try:
-            task = self._tasks.get(task_id)
-            if not task:
-                bound_logger.warning("download_task_service.update_status.task_not_found")
-                return False
-            
-            old_status = task.status
-            task.status = status
-            
-            if started_at:
-                task.started_at = started_at
-            if completed_at:
-                task.completed_at = completed_at
-            if error_message:
-                task.error_message = error_message
-            
-            bound_logger.info(
-                "download_task_service.update_status.success",
-                old_status=old_status.value,
-                new_status=status.value
-            )
-            
+            if self.use_database:
+                # 数据库模式
+                from src.models.download_task import DownloadTaskModel
+
+                with self._get_session() as session:
+                    db_task = session.query(DownloadTaskModel).filter_by(task_id=task_id).first()
+                    if not db_task:
+                        bound_logger.warning("download_task_service.update_status.task_not_found")
+                        return False
+
+                    old_status = db_task.status
+                    db_task.status = status
+
+                    if started_at:
+                        db_task.started_at = started_at
+                    if completed_at:
+                        db_task.completed_at = completed_at
+                    if error_message:
+                        db_task.error_message = error_message
+
+                    session.commit()
+
+                    bound_logger.info(
+                        "download_task_service.update_status.success",
+                        old_status=old_status.value,
+                        new_status=status.value,
+                        db_id=db_task.id
+                    )
+            else:
+                # 内存模式
+                task = self._tasks.get(task_id)
+                if not task:
+                    bound_logger.warning("download_task_service.update_status.task_not_found")
+                    return False
+
+                old_status = task.status
+                task.status = status
+
+                if started_at:
+                    task.started_at = started_at
+                if completed_at:
+                    task.completed_at = completed_at
+                if error_message:
+                    task.error_message = error_message
+
+                bound_logger.info(
+                    "download_task_service.update_status.success",
+                    old_status=old_status.value,
+                    new_status=status.value
+                )
+
             return True
-            
+
         except Exception as e:
             bound_logger.error(
                 "download_task_service.update_status.error",

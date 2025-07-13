@@ -17,13 +17,33 @@ from src.core.fund_search_parameters import (
 )
 from src.services.fund_report_service import FundReportService
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
+from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
 from src.main import get_scraper
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/reports", tags=["报告搜索"])
 
+
+def get_scraper() -> CSRCFundReportScraper:
+    """获取爬虫实例"""
+    from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
+    import httpx
+
+    # 为测试环境创建独立的HTTP客户端
+    session = httpx.AsyncClient(
+        timeout=30.0,
+        follow_redirects=True,
+        headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+    )
+
+    return CSRCFundReportScraper(session=session)
+
+
 def get_fund_report_service(scraper: CSRCFundReportScraper = Depends(get_scraper)) -> FundReportService:
+    """获取基金报告服务实例"""
     return FundReportService(scraper)
 
 

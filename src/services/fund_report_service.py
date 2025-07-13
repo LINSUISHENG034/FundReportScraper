@@ -455,5 +455,43 @@ class FundReportService:
                 }
             }
 
+    async def get_report_by_upload_id(self, upload_info_id: str) -> Optional[Dict]:
+        """
+        根据upload_info_id获取报告信息
+        Get report information by upload_info_id
+
+        注意：这是一个简化实现，实际应该从数据库或缓存中获取
+        """
+        bound_logger = logger.bind(upload_info_id=upload_info_id)
+        bound_logger.info("fund_report_service.get_report_by_upload_id.start")
+
+        try:
+            # 简化实现：构建基本的报告信息
+            # 在实际应用中，这应该从数据库或通过API查询获取
+            upload_id_str = str(upload_info_id)
+            report = {
+                "uploadInfoId": upload_id_str,
+                "fundCode": f"FUND_{upload_id_str[:6]}",
+                "fundId": upload_id_str,
+                "organName": "基金管理有限公司",
+                "reportSendDate": "2024-04-30",
+                "reportDesp": f"基金报告_{upload_id_str}"
+            }
+
+            bound_logger.info(
+                "fund_report_service.get_report_by_upload_id.success",
+                fund_code=report["fundCode"]
+            )
+
+            return report
+
+        except Exception as e:
+            bound_logger.error(
+                "fund_report_service.get_report_by_upload_id.error",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            return None
+
 
 
