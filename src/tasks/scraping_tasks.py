@@ -14,7 +14,7 @@ from celery.exceptions import Retry
 from src.core.celery_app import app
 from src.core.logging import get_logger
 from src.scrapers.fund_scraper import FundReportScraper
-from src.storage.minio_client import MinIOClient
+from src.storage.minio_client import MinIOStorage
 from src.models.database import ReportType, TaskStatus
 from src.models.connection import get_db_session
 from src.tasks.parsing_tasks import parse_xbrl_file
@@ -213,7 +213,7 @@ def scrape_single_fund_report(
         
         # 创建爬虫和存储客户端
         scraper = FundReportScraper()
-        storage = MinIOClient()
+        storage = MinIOStorage()
         
         results = {
             'fund_code': fund_code,
@@ -244,14 +244,13 @@ def scrape_single_fund_report(
                         # 下载文件
                         file_content = scraper.download_report(report_info['download_url'])
                         
-                        # 生成存储路径
-                        file_name = f"{fund_code}_{report_type.value}_{report_info['report_date'].strftime('%Y%m%d')}.xbrl"
-                        storage_path = f"fund-reports/{fund_code}/{file_name}"
-                        
                         # 上传到MinIO
-                        storage.upload_file_content(
-                            content=file_content,
-                            object_name=storage_path,
+                        storage_path = storage.upload_file(
+                            file_content=file_content,
+                            fund_code=fund_code,
+                            report_date=report_info['report_date'].strftime('%Y-%m-%d'),
+                            report_type=report_type.value,
+                            file_extension='xbrl',
                             content_type='application/xml'
                         )
                         

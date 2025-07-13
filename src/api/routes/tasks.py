@@ -16,7 +16,19 @@ from src.api.schemas import (
     TaskStatusEnum, BaseResponse
 )
 
+# 导入真实的爬虫任务
 logger = get_logger(__name__)
+
+# 常量定义
+DEFAULT_PROGRESS = 50
+
+try:
+    from src.tasks.scraping_tasks import scrape_fund_reports, scrape_single_fund_report
+    CELERY_AVAILABLE = True
+except ImportError:
+    CELERY_AVAILABLE = False
+    logger.warning("Celery tasks not available, using fallback mode")
+
 router = APIRouter()
 
 # 模拟任务存储（生产环境应该使用数据库或Redis）
@@ -117,6 +129,46 @@ async def get_task_detail(
             )
         
         task_data = tasks_storage[task_id]
+        
+        # 如果有Celery任务ID，检查真实任务状态
+        if CELERY_AVAILABLE and "celery_task_id" in task_data:
+            try:
+                from celery.result import AsyncResult
+                celery_task_id = task_data["celery_task_id"]
+                celery_result = AsyncResult(celery_task_id)
+                
+                # 更新任务状态基于Celery任务状态
+                if celery_result.state == "PENDING":
+                    task_data["status"] = "pending"
+                    task_data["progress"] = 0
+                elif celery_result.state == "PROGRESS":
+                    task_data["status"] = "running"
+                    # 尝试获取进度信息
+                    if hasattr(celery_result.info, 'get') and 'progress' in celery_result.info:
+                        task_data["progress"] = celery_result.info['progress']
+                    else:
+                        task_data["progress"] = DEFAULT_PROGRESS  # 默认进度
+                elif celery_result.state == "SUCCESS":
+                    task_data["status"] = "success"
+                    task_data["progress"] = 100
+                    task_data["completed_at"] = datetime.utcnow()
+                    task_data["result"] = celery_result.result
+                elif celery_result.state == "FAILURE":
+                    task_data["status"] = "failed"
+                    task_data["completed_at"] = datetime.utcnow()
+                    task_data["error_message"] = str(celery_result.info)
+                
+                logger.debug("api.tasks.get_task_detail.celery_status_checked",
+                           task_id=task_id,
+                           celery_task_id=celery_task_id,
+                           celery_state=celery_result.state,
+                           updated_status=task_data["status"])
+                           
+            except Exception as e:
+                logger.warning("api.tasks.get_task_detail.celery_check_failed",
+                             task_id=task_id,
+                             error=str(e))
+        
         task_info = create_task_info(task_id, task_data)
         
         logger.info("api.tasks.get_task_detail.success", 
@@ -189,8 +241,49 @@ async def create_task(
         
         tasks_storage[task_id] = task_data
         
-        # 添加后台任务执行
-        background_tasks.add_task(execute_background_task, task_id, task_request.task_type, task_request.parameters)
+        # 启动真实的数据采集任务
+        if CELERY_AVAILABLE and task_request.task_type == "fund_scraping":
+            # 提取基金代码参数
+            fund_codes = task_request.parameters.get("fund_codes", [])
+            start_date = task_request.parameters.get("start_date")
+            end_date = task_request.parameters.get("end_date")
+            
+            # 根据基金代码数量决定使用批量还是单个任务
+            if len(fund_codes) == 1:
+                # 单个基金代码，使用单个任务
+                celery_task = scrape_single_fund_report.delay(
+                    fund_code=fund_codes[0],
+                    report_types=['annual', 'semi_annual', 'quarterly'],
+                    start_date=start_date,
+                    end_date=end_date,
+                    force_update=False
+                )
+            else:
+                # 多个基金代码，使用批量任务
+                celery_task = scrape_fund_reports.delay(
+                    fund_codes=fund_codes,
+                    report_types=['annual', 'semi_annual', 'quarterly'],
+                    start_date=start_date,
+                    end_date=end_date,
+                    force_update=False
+                )
+            
+            # 更新任务数据，存储Celery任务ID
+            task_data["celery_task_id"] = celery_task.id
+            task_data["status"] = "running"
+            task_data["started_at"] = datetime.utcnow()
+            
+            logger.info("api.tasks.create_task.celery_task_started", 
+                       task_id=task_id, 
+                       celery_task_id=celery_task.id,
+                       fund_codes=fund_codes)
+        else:
+            # 如果Celery不可用或其他任务类型，使用后台任务
+            if not CELERY_AVAILABLE and task_request.task_type == "fund_scraping":
+                logger.warning("api.tasks.create_task.celery_unavailable", 
+                             task_id=task_id,
+                             task_type=task_request.task_type)
+            background_tasks.add_task(execute_background_task, task_id, task_request.task_type, task_request.parameters)
         
         task_info = create_task_info(task_id, task_data)
         

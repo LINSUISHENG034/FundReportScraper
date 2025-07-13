@@ -6,7 +6,7 @@ Fund information related API routes
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
 from typing import List, Optional
 
 from src.core.logging import get_logger
@@ -324,4 +324,68 @@ async def get_fund_companies(
         raise HTTPException(
             status_code=500,
             detail=f"获取基金公司列表失败: {str(e)}"
+        )
+
+
+@router.get("/stats/summary", response_model=BaseResponse, summary="获取基金统计信息")
+async def get_funds_stats(
+    db: Session = Depends(get_db_session)
+):
+    """
+    获取基金的统计信息
+    Get funds statistics
+    """
+    logger.info("api.funds.get_funds_stats.start")
+    
+    try:
+        # 总基金数
+        total_funds = db.query(Fund).count()
+        
+        # 按类型统计
+        type_stats = {}
+        fund_types = db.query(Fund.fund_type).distinct().filter(
+            Fund.fund_type.isnot(None)
+        ).all()
+        
+        for fund_type in fund_types:
+            if fund_type[0]:
+                count = db.query(Fund).filter(Fund.fund_type == fund_type[0]).count()
+                type_stats[fund_type[0]] = count
+        
+        # 按公司统计前10
+        company_stats = db.query(Fund.fund_company, func.count(Fund.id).label('fund_count'))\
+            .filter(Fund.fund_company.isnot(None))\
+            .group_by(Fund.fund_company)\
+            .order_by(func.count(Fund.id).desc())\
+            .limit(10)\
+            .all()
+        
+        # 最新更新日期
+        latest_fund = db.query(Fund).order_by(Fund.updated_at.desc()).first()
+        latest_update_date = latest_fund.updated_at.isoformat() if latest_fund else None
+        
+        stats = {
+            "total_funds": total_funds,
+            "by_type": type_stats,
+            "top_companies": [
+                {"company": row[0], "fund_count": row[1]} 
+                for row in company_stats
+            ],
+            "latest_update_date": latest_update_date
+        }
+        
+        logger.info("api.funds.get_funds_stats.success", 
+                   total_funds=total_funds)
+        
+        return BaseResponse(
+            success=True,
+            message="成功获取基金统计信息",
+            data=stats
+        )
+        
+    except Exception as e:
+        logger.error("api.funds.get_funds_stats.error", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"获取统计信息失败: {str(e)}"
         )
