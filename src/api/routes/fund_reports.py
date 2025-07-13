@@ -9,7 +9,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends, Body
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 
 from src.core.logging import get_logger
@@ -215,106 +215,6 @@ async def search_all_pages(
         raise HTTPException(status_code=500, detail=f"搜索失败: {str(e)}")
 
 
-@router.post("/batch-download")
-async def batch_download_reports(
-    background_tasks: BackgroundTasks,
-    request: BatchDownloadRequest = Body(...),
-    service: FundReportService = Depends(get_fund_report_service)
-) -> dict:
-    """
-    批量下载基金报告
-    Batch download fund reports
-    """
-    bound_logger = logger.bind(
-        year=request.search_criteria.year,
-        report_type=request.search_criteria.report_type,
-        max_concurrent=request.max_concurrent
-    )
-    
-    bound_logger.info("api.fund_reports.batch_download.start")
-    
-    try:
-        # 验证参数
-        try:
-            report_type_enum = ReportType(request.search_criteria.report_type)
-        except ValueError:
-            raise HTTPException(
-                status_code=400,
-                detail=f"无效的报告类型: {request.search_criteria.report_type}"
-            )
-        
-        fund_type_enum = None
-        if request.search_criteria.fund_type:
-            try:
-                fund_type_enum = FundType(request.search_criteria.fund_type)
-            except ValueError:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"无效的基金类型: {request.search_criteria.fund_type}"
-                )
-        
-        # 构建搜索条件
-        criteria = FundSearchCriteria(
-            year=request.search_criteria.year,
-            report_type=report_type_enum,
-            fund_type=fund_type_enum,
-            fund_company_short_name=request.search_criteria.fund_company_short_name,
-            fund_code=request.search_criteria.fund_code,
-            fund_short_name=request.search_criteria.fund_short_name,
-            start_upload_date=request.search_criteria.start_upload_date,
-            end_upload_date=request.search_criteria.end_upload_date,
-            page_size=100  # 使用较大的页面大小
-        )
-        
-        # 首先获取所有报告
-        search_result = await service.search_all_pages(criteria)
-        
-        if not search_result["success"]:
-            raise HTTPException(
-                status_code=500,
-                detail=f"搜索报告失败: {search_result.get('error', 'Unknown error')}"
-            )
-        
-        reports = search_result["data"]
-        
-        if not reports:
-            return {
-                "success": True,
-                "message": "没有找到符合条件的报告",
-                "statistics": {
-                    "total": 0,
-                    "success": 0,
-                    "failed": 0
-                }
-            }
-        
-        # 设置保存目录
-        save_dir = Path(request.save_dir) if request.save_dir else Path("data/downloads")
-        
-        # 执行批量下载
-        download_result = await service.batch_download(
-            reports, save_dir, request.max_concurrent
-        )
-        
-        bound_logger.info(
-            "api.fund_reports.batch_download.success",
-            total_reports=len(reports),
-            success_count=download_result.get("statistics", {}).get("success", 0),
-            failed_count=download_result.get("statistics", {}).get("failed", 0)
-        )
-        
-        return download_result
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        bound_logger.error(
-            "api.fund_reports.batch_download.error",
-            error=str(e),
-            error_type=type(e).__name__
-        )
-        raise HTTPException(status_code=500, detail=f"批量下载失败: {str(e)}")
-
 
 @router.get("/report-types")
 async def get_report_types() -> dict:
@@ -350,7 +250,7 @@ async def get_fund_types() -> dict:
 
 @router.post("/enhanced-batch-download")
 async def enhanced_batch_download(
-    request: BatchDownloadRequest = Body(...),
+    request: BatchDownloadRequest,
     service: FundReportService = Depends(get_fund_report_service)
 ) -> dict:
     """
