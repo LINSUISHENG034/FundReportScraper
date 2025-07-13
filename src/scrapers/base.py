@@ -39,20 +39,21 @@ class BaseScraper(ABC):
     基础爬虫类，提供通用的爬取功能。
     """
     
-    def __init__(self, base_url: str = None, rate_limiter: RateLimiter = None):
+    def __init__(self, base_url: str = None, rate_limiter: RateLimiter = None, session: Optional[AsyncClient] = None):
         """
         Initialize base scraper.
         
         Args:
             base_url: Base URL for the target website
             rate_limiter: Rate limiter instance
+            session: Optional shared httpx.AsyncClient session
         """
         self.base_url = base_url or settings.target.base_url
         self.rate_limiter = rate_limiter or RateLimiter(
             max_tokens=60,  # 60 requests per minute max
             refill_rate=1.0  # 1 request per second
         )
-        self.session: Optional[AsyncClient] = None
+        self.session = session
         
         # HTTP configuration
         self.headers = {

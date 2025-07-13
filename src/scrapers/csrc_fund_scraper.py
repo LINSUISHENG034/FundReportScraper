@@ -11,7 +11,8 @@ from urllib.parse import urlencode
 
 from src.core.config import settings
 from src.core.logging import get_logger
-from src.models.database import ReportType
+from src.core.fund_search_parameters import FundSearchCriteria, ReportType as NewReportType, FundType
+from httpx import AsyncClient
 from src.scrapers.base import BaseScraper, ParseError
 
 logger = get_logger(__name__)
@@ -23,8 +24,8 @@ class CSRCFundReportScraper(BaseScraper):
     CSRC fund report scraper following documentation guidance
     """
     
-    def __init__(self):
-        super().__init__(base_url=settings.target.base_url)
+    def __init__(self, session: Optional[AsyncClient] = None):
+        super().__init__(base_url=settings.target.base_url, session=session)
         self.search_url = settings.target.search_url
         self.instance_url = settings.target.instance_url
         
@@ -37,7 +38,7 @@ class CSRCFundReportScraper(BaseScraper):
     async def get_report_list(
         self,
         year: int,
-        report_type: ReportType,
+        report_type: NewReportType,
         page: int = 1,
         page_size: int = 100,
         fund_type: Optional[str] = None,
@@ -70,8 +71,12 @@ class CSRCFundReportScraper(BaseScraper):
         bound_logger.info("csrc_scraper.get_report_list.start")
         
         try:
-            # 按照真实浏览器请求构建参数
-            ao_data = self._build_ao_data(year, report_type, page, page_size, fund_type)
+            # 按照验证结果构建参数，传递所有6个搜索参数
+            ao_data = self._build_ao_data(
+                year, report_type, page, page_size, fund_type,
+                fund_company_short_name, fund_code, fund_short_name,
+                start_upload_date, end_upload_date
+            )
             
             # 构建查询字符串
             ao_data_json = json.dumps(ao_data)
@@ -116,11 +121,99 @@ class CSRCFundReportScraper(BaseScraper):
                 error_type=type(e).__name__
             )
             raise ParseError(f"获取报告列表失败: {e}")
-    
+
+    async def search_reports(self, criteria: FundSearchCriteria) -> List[Dict]:
+        """
+        使用搜索条件对象进行报告搜索
+        Search reports using FundSearchCriteria object
+        """
+        bound_logger = logger.bind(
+            criteria=criteria.get_description(),
+            page=criteria.page,
+            page_size=criteria.page_size
+        )
+
+        bound_logger.info("csrc_scraper.search_reports.start")
+
+        try:
+            # 构建aoData参数
+            ao_data = criteria.to_ao_data_list()
+
+            # 构建查询字符串
+            ao_data_json = json.dumps(ao_data)
+            timestamp = int(time.time() * 1000)
+
+            params = {
+                'aoData': ao_data_json,
+                '_': timestamp
+            }
+
+            # 发送请求
+            response = await self.session.get(self.search_url, params=params)
+
+            if response.status_code == 200:
+                # 强制解析JSON，忽略Content-Type（基于验证结果）
+                try:
+                    data = response.json()
+                    reports = data.get('aaData', [])
+
+                    bound_logger.info(
+                        "csrc_scraper.search_reports.success",
+                        total_records=data.get('iTotalRecords', 0),
+                        returned_count=len(reports)
+                    )
+
+                    return reports
+
+                except Exception as json_error:
+                    bound_logger.error(
+                        "csrc_scraper.search_reports.json_parse_error",
+                        error=str(json_error),
+                        response_text=response.text[:200]
+                    )
+                    raise ParseError(f"JSON解析失败: {json_error}")
+            else:
+                bound_logger.error(
+                    "csrc_scraper.search_reports.http_error",
+                    status_code=response.status_code,
+                    response_text=response.text[:200]
+                )
+                raise ParseError(f"HTTP请求失败: {response.status_code}")
+
+        except Exception as e:
+            bound_logger.error(
+                "csrc_scraper.search_reports.error",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            raise ParseError(f"搜索报告失败: {e}")
+
+    async def scrape(self, **kwargs) -> List[Dict]:
+        """
+        实现抽象基类的scrape方法
+        Implementation of abstract scrape method
+        """
+        # 从kwargs中提取参数
+        year = kwargs.get('year', 2024)
+        report_type = kwargs.get('report_type', NewReportType.ANNUAL)
+        page = kwargs.get('page', 1)
+        page_size = kwargs.get('page_size', 20)
+
+        # 调用get_report_list方法
+        reports, has_more = await self.get_report_list(
+            year=year,
+            report_type=report_type,
+            page=page,
+            page_size=page_size,
+            **{k: v for k, v in kwargs.items() if k not in ['year', 'report_type', 'page', 'page_size']}
+        )
+
+        return reports
+
     def _build_ao_data(
         self,
         year: int,
-        report_type: ReportType,
+        report_type: NewReportType,
         page: int,
         page_size: int,
         fund_type: Optional[str] = None,
@@ -131,29 +224,25 @@ class CSRCFundReportScraper(BaseScraper):
         end_upload_date: Optional[str] = None
     ) -> List[Dict]:
         """
-        按照真实浏览器请求构建aoData参数
-        Build aoData parameters following real browser request
+        按照验证结果构建aoData参数
+        Build aoData parameters based on validated implementation
         """
-        # 报告类型代码映射（根据真实浏览器请求）
+        # 报告类型代码映射（基于真实测试验证）
         report_type_mapping = {
-            ReportType.QUARTERLY: "FB030010",    # 第一季度报告
-            ReportType.SEMI_ANNUAL: "FB020010",  # 中报
-            ReportType.ANNUAL: "FB010010"        # 年报
-        }
-
-        # 基金类型代码映射
-        fund_type_mapping = {
-            "股票型": "6020-6010",
-            "混合型": "6020-6020",
-            "债券型": "6020-6030",
-            "货币型": "6020-6040",
-            "QDII": "6020-6050",
-            "FOF": "6020-6060"
+            ReportType.QUARTERLY: NewReportType.QUARTERLY_Q1.value,    # 第一季度报告
+            ReportType.SEMI_ANNUAL: NewReportType.SEMI_ANNUAL.value,   # 中期报告
+            ReportType.ANNUAL: NewReportType.ANNUAL.value              # 年度报告
         }
 
         display_start = (page - 1) * page_size
 
-        # 按照真实浏览器请求的完整参数列表
+        # 获取报告类型代码
+        report_type_code = report_type_mapping.get(report_type, NewReportType.QUARTERLY_Q1.value)
+
+        # 处理特殊情况：基金产品资料概要需要空的reportYear
+        report_year = "" if report_type_code == NewReportType.FUND_PROFILE.value else str(year)
+
+        # 按照验证的实现构建完整参数列表
         ao_data = [
             {"name": "sEcho", "value": page},
             {"name": "iColumns", "value": 6},
@@ -166,14 +255,14 @@ class CSRCFundReportScraper(BaseScraper):
             {"name": "mDataProp_3", "value": "reportSendDate"},
             {"name": "mDataProp_4", "value": "reportDesp"},
             {"name": "mDataProp_5", "value": "uploadInfoId"},
-            {"name": "fundType", "value": fund_type or ""},  # 基金类型，空表示所有类型
-            {"name": "reportTypeCode", "value": report_type_mapping.get(report_type, "FB030010")},
-            {"name": "reportYear", "value": str(year)},
-            {"name": "fundCompanyShortName", "value": ""},
-            {"name": "fundCode", "value": ""},
-            {"name": "fundShortName", "value": ""},
-            {"name": "startUploadDate", "value": ""},
-            {"name": "endUploadDate", "value": ""}
+            {"name": "fundType", "value": fund_type or ""},
+            {"name": "reportTypeCode", "value": report_type_code},
+            {"name": "reportYear", "value": report_year},
+            {"name": "fundCompanyShortName", "value": fund_company_short_name or ""},
+            {"name": "fundCode", "value": fund_code or ""},
+            {"name": "fundShortName", "value": fund_short_name or ""},
+            {"name": "startUploadDate", "value": start_upload_date or ""},
+            {"name": "endUploadDate", "value": end_upload_date or ""}
         ]
 
         logger.debug(
@@ -375,7 +464,7 @@ class CSRCFundReportScraper(BaseScraper):
         file_url: str,
         fund_code: str,
         report_date: str,
-        report_type: ReportType
+        report_type: NewReportType
     ) -> bytes:
         """
         兼容原有接口的下载方法
@@ -392,7 +481,7 @@ class CSRCFundReportScraper(BaseScraper):
     async def get_all_reports(
         self,
         year: int,
-        report_type: ReportType,
+        report_type: NewReportType,
         max_pages: Optional[int] = None
     ) -> List[Dict]:
         """

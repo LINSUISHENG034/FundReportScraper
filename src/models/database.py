@@ -12,6 +12,7 @@ from sqlalchemy import (
     Numeric, String, Text, UniqueConstraint
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.types import JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -136,7 +137,7 @@ class AssetAllocation(Base):
     other_ratio = Column(Numeric(5, 4), comment="其他投资占比")
     
     # 扩展字段，存储其他资产配置信息
-    extended_data = Column(JSONB, comment="扩展数据（JSON格式）")
+    extended_data = Column(JSONB().with_variant(JSON, "sqlite"), comment="扩展数据（JSON格式）")
     
     # 时间戳
     created_at = Column(DateTime, default=func.now(), nullable=False)
@@ -226,7 +227,7 @@ class ScrapingTask(Base):
     # 任务参数
     target_year = Column(Integer, comment="目标年份")
     target_report_type = Column(Enum(ReportType), comment="目标报告类型")
-    fund_codes = Column(JSONB, comment="指定基金代码列表（JSON）")
+    fund_codes = Column(JSONB().with_variant(JSON, "sqlite"), comment="指定基金代码列表（JSON）")
     
     # 执行信息
     started_at = Column(DateTime, comment="开始时间")
@@ -239,7 +240,7 @@ class ScrapingTask(Base):
     failed_reports = Column(Integer, default=0, comment="失败报告数")
     
     # 扩展信息
-    execution_log = Column(JSONB, comment="执行日志（JSON格式）")
+    execution_log = Column(JSONB().with_variant(JSON, "sqlite"), comment="执行日志（JSON格式）")
     
     # 时间戳
     created_at = Column(DateTime, default=func.now(), nullable=False)
