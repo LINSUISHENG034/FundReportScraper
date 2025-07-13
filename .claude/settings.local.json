@@ -40,7 +40,12 @@
       "Bash(./show_dual_interface.sh:*)",
       "Bash(git reset:*)",
       "Bash(echo:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(kill:*)",
+      "Bash(./verify_setup.sh:*)",
+      "Bash(./test_api_import.sh:*)",
+      "Bash(./test_setup_simulation.sh:*)",
+      "Bash(./final_verification.sh:*)"
     ],
     "deny": []
   }
