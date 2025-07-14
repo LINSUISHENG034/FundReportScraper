@@ -8,7 +8,7 @@ from functools import lru_cache
 from typing import Optional
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class DatabaseSettings(BaseSettings):
@@ -21,8 +21,7 @@ class DatabaseSettings(BaseSettings):
     user: str = Field(default="fund_user")
     password: str = Field(default="fund_password")
     
-    class Config:
-        env_prefix = "DATABASE_"
+    model_config = SettingsConfigDict(env_prefix="DATABASE_")
 
 
 class RedisSettings(BaseSettings):
@@ -33,8 +32,7 @@ class RedisSettings(BaseSettings):
     port: int = Field(default=6379)
     db: int = Field(default=0)
     
-    class Config:
-        env_prefix = "REDIS_"
+    model_config = SettingsConfigDict(env_prefix="REDIS_")
 
 
 class MinIOSettings(BaseSettings):
@@ -46,8 +44,7 @@ class MinIOSettings(BaseSettings):
     bucket_name: str = Field(default="fund-reports")
     secure: bool = Field(default=False)
     
-    class Config:
-        env_prefix = "MINIO_"
+    model_config = SettingsConfigDict(env_prefix="MINIO_")
 
 
 class CelerySettings(BaseSettings):
@@ -56,8 +53,7 @@ class CelerySettings(BaseSettings):
     broker_url: str = Field(default="redis://localhost:6379/0")
     result_backend: str = Field(default="redis://localhost:6379/0")
     
-    class Config:
-        env_prefix = "CELERY_"
+    model_config = SettingsConfigDict(env_prefix="CELERY_")
 
 
 class ScraperSettings(BaseSettings):
@@ -68,8 +64,7 @@ class ScraperSettings(BaseSettings):
     max_retries: int = Field(default=3)
     timeout: int = Field(default=30)
     
-    class Config:
-        env_prefix = "SCRAPER_"
+    model_config = SettingsConfigDict(env_prefix="SCRAPER_")
 
 
 class TargetSettings(BaseSettings):
@@ -79,8 +74,17 @@ class TargetSettings(BaseSettings):
     search_url: str = Field(default="http://eid.csrc.gov.cn/fund/disclose/advanced_search_xbrl.do")
     instance_url: str = Field(default="http://eid.csrc.gov.cn/fund/disclose/instance_html_view.do")
     
-    class Config:
-        env_prefix = "TARGET_"
+    model_config = SettingsConfigDict(env_prefix="TARGET_")
+
+
+class LoggingSettings(BaseSettings):
+    """Logging configuration settings."""
+    
+    level: str = Field(default="INFO")
+    json_format: bool = Field(default=False)
+    log_dir: str = Field(default="logs")
+    
+    model_config = SettingsConfigDict(env_prefix="LOGGING_")
 
 
 class AppSettings(BaseSettings):
@@ -89,9 +93,9 @@ class AppSettings(BaseSettings):
     name: str = Field(default="FundReportScraper")
     version: str = Field(default="0.1.0")
     debug: bool = Field(default=False)
-    log_level: str = Field(default="INFO")
     
     # Sub-configurations
+    logging: LoggingSettings = Field(default_factory=LoggingSettings)
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
     minio: MinIOSettings = Field(default_factory=MinIOSettings)
@@ -99,16 +103,14 @@ class AppSettings(BaseSettings):
     scraper: ScraperSettings = Field(default_factory=ScraperSettings)
     target: TargetSettings = Field(default_factory=TargetSettings)
     
-    class Config:
-        env_prefix = "APP_"
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(env_prefix="APP_", env_file=".env", env_file_encoding="utf-8")
 
 
 @lru_cache()
 def get_settings() -> AppSettings:
     """Get cached application settings."""
     return AppSettings(
+        logging=LoggingSettings(),
         database=DatabaseSettings(),
         redis=RedisSettings(),
         minio=MinIOSettings(),

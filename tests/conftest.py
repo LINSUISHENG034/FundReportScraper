@@ -14,27 +14,40 @@ from sqlalchemy.orm import sessionmaker
 
 from src.core.config import get_settings
 from src.core.logging import configure_logging
+from src.main import create_app
+
+
+def pytest_configure(config):
+    """
+    Allows plugins and conftest files to perform initial configuration.
+    This hook is called for every plugin and initial conftest file
+    after command line options have been parsed.
+    """
+    os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+    os.environ["REDIS_URL"] = "redis://localhost:6379/15"
+    os.environ["DEBUG"] = "true"
+    os.environ["LOG_LEVEL"] = "DEBUG"
+    # Clear the cache to ensure the new settings are used
+    get_settings.cache_clear()
 
 
 @pytest.fixture(scope="session", autouse=True)
 def configure_test_logging() -> None:
     """Configure logging for tests."""
-    configure_logging(log_level="DEBUG", json_logs=False)
+    configure_logging(log_level="DEBUG")
 
 
 @pytest.fixture(scope="session")
-def test_settings():
-    """Get test-specific settings."""
-    # Override settings for testing
-    os.environ["DATABASE_URL"] = "sqlite:///:memory:"
-    os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # Use test database
-    os.environ["DEBUG"] = "true"
-    os.environ["LOG_LEVEL"] = "DEBUG"
-    
-    settings = get_settings()
-    # Clear the cache to get updated settings
-    get_settings.cache_clear()
-    return get_settings()
+def app(client: AsyncClient):
+    """Create a new application for testing."""
+    return create_app(http_client=client)
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client(app) -> AsyncGenerator[AsyncClient, None]:
+    """Create an async client for testing the application."""
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac
 
 
 @pytest.fixture
@@ -79,13 +92,6 @@ def sample_fund_data() -> dict:
         "total_shares": 12000000000.00,
         "unit_nav": 1.3000,
     }
-
-
-@pytest_asyncio.fixture
-async def async_client() -> AsyncGenerator[AsyncClient, None]:
-    """Create an async HTTP client for testing."""
-    async with AsyncClient() as client:
-        yield client
 
 
 class MockResponse:

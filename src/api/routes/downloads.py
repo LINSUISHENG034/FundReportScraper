@@ -17,7 +17,7 @@ from pathlib import Path
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/v2/downloads", tags=["下载任务 (V2)"])
+router = APIRouter(prefix="/api/downloads", tags=["下载任务"])
 
 # Pydantic Models
 class DownloadTaskCreateRequest(BaseModel):

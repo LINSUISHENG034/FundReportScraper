@@ -73,11 +73,14 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-logs/
 data/
 storage/
 temp/
 downloads/
+
+# Logs
+logs/
+*.log
 
 # Environment variables
 .env*

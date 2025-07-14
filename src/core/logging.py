@@ -4,7 +4,9 @@ Structured logging configuration using structlog.
 """
 
 import logging
+import logging.handlers
 import sys
+from pathlib import Path
 from typing import Any, Dict
 
 import structlog
@@ -18,36 +20,45 @@ def add_app_context(logger: Any, method_name: str, event_dict: Dict[str, Any]) -
     return event_dict
 
 
-def configure_logging(log_level: str = "INFO", json_logs: bool = True) -> None:
+from src.core.config import settings
+
+def configure_logging(log_level: str = settings.logging.level) -> None:
     """
     Configure structured logging with JSON output.
     
     Args:
-        log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
-        json_logs: Whether to output logs in JSON format
+        
     """
     # Configure structlog processors
+    log_level = log_level.upper()
+    json_logs = settings.logging.json_format
+    log_dir = Path(settings.logging.log_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / "app.log"
+
+    # Configure structlog processors
     processors: list[Processor] = [
-        # Add timestamp
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
         add_app_context,
+        structlog.processors.format_exc_info,
     ]
-    
+
     if json_logs:
-        # JSON output for production
-        processors.extend([
-            structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer()
-        ])
+        processors.append(structlog.processors.JSONRenderer())
     else:
-        # Console-friendly output for development
-        processors.extend([
-            structlog.processors.format_exc_info,
-            structlog.dev.ConsoleRenderer(colors=True)
-        ])
+        processors.append(structlog.dev.ConsoleRenderer(colors=True))
+
+    # Setup handlers
+    handler = logging.handlers.TimedRotatingFileHandler(log_file, when="D", interval=1, backupCount=7)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+
+    # Configure standard library logging to use this handler
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+    root_logger.setLevel(log_level)
     
     # Configure structlog
     structlog.configure(
@@ -58,11 +69,7 @@ def configure_logging(log_level: str = "INFO", json_logs: bool = True) -> None:
     )
     
     # Configure standard library logging
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=getattr(logging, log_level.upper()),
-    )
+
 
 
 def get_logger(name: str = "") -> structlog.stdlib.BoundLogger:
