@@ -65,16 +65,16 @@ class ReportSearchResponse(BaseModel):
 
 @router.get("", response_model=ReportSearchResponse)
 async def search_reports(
-    year: int = Query(..., description="报告年度", example=2024),
-    report_type: str = Query(..., description="报告类型代码", example="FB010010"),
+    year: int = Query(..., description="报告年度（必填）", example=2024, ge=2000, le=2030),
+    report_type: str = Query(..., description="报告类型代码（必填）", example="FB010010"),
     page: int = Query(1, ge=1, description="页码", example=1),
     page_size: int = Query(20, ge=1, le=100, description="每页数量", example=20),
-    fund_type: Optional[str] = Query(None, description="基金类型代码", example="6020-6050"),
-    fund_company_short_name: Optional[str] = Query(None, description="基金管理人简称", example="工银瑞信"),
-    fund_code: Optional[str] = Query(None, description="基金代码", example="164906"),
-    fund_short_name: Optional[str] = Query(None, description="基金简称", example="工银全球"),
-    start_upload_date: Optional[date] = Query(None, description="开始上传日期", example="2024-01-01"),
-    end_upload_date: Optional[date] = Query(None, description="结束上传日期", example="2024-12-31"),
+    fund_type: Optional[str] = Query(None, description="基金类型代码（可选）", example="6020-6050"),
+    fund_company_short_name: Optional[str] = Query(None, description="基金管理人简称（可选）", example="工银瑞信"),
+    fund_code: Optional[str] = Query(None, description="基金代码（可选）", example="164906"),
+    fund_short_name: Optional[str] = Query(None, description="基金简称（可选）", example="工银全球"),
+    start_upload_date: Optional[date] = Query(None, description="开始上传日期（可选）", example="2024-01-01"),
+    end_upload_date: Optional[date] = Query(None, description="结束上传日期（可选）", example="2024-12-31"),
     service: FundReportService = Depends(get_fund_report_service)
 ) -> ReportSearchResponse:
     """
@@ -93,25 +93,63 @@ async def search_reports(
     bound_logger.info("api.reports.search.start")
     
     try:
+        # 参数验证日志
+        bound_logger.info(
+            "api.reports.search.params_validation",
+            year=year,
+            report_type=report_type,
+            fund_type=fund_type,
+            page=page,
+            page_size=page_size
+        )
+        
         # 验证报告类型
         try:
             report_type_enum = ReportType(report_type)
-        except ValueError:
-            raise HTTPException(
-                status_code=400,
-                detail=f"无效的报告类型: {report_type}. 有效值: {[rt.value for rt in ReportType]}"
+            bound_logger.debug(
+                "api.reports.search.report_type_valid",
+                report_type=report_type,
+                description=ReportType.get_description(report_type_enum)
             )
+        except ValueError:
+            valid_types = [f"{rt.value} ({ReportType.get_description(rt)})" for rt in ReportType]
+            error_detail = f"无效的报告类型: {report_type}. 有效值: {valid_types}"
+            bound_logger.warning(
+                "api.reports.search.invalid_report_type",
+                report_type=report_type,
+                valid_types=[rt.value for rt in ReportType]
+            )
+            raise HTTPException(status_code=400, detail=error_detail)
         
         # 验证基金类型
         fund_type_enum = None
         if fund_type:
             try:
                 fund_type_enum = FundType(fund_type)
-            except ValueError:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"无效的基金类型: {fund_type}. 有效值: {[ft.value for ft in FundType]}"
+                bound_logger.debug(
+                    "api.reports.search.fund_type_valid",
+                    fund_type=fund_type,
+                    description=FundType.get_description(fund_type_enum)
                 )
+            except ValueError:
+                valid_types = [f"{ft.value} ({FundType.get_description(ft)})" for ft in FundType]
+                error_detail = f"无效的基金类型: {fund_type}. 有效值: {valid_types}"
+                bound_logger.warning(
+                    "api.reports.search.invalid_fund_type",
+                    fund_type=fund_type,
+                    valid_types=[ft.value for ft in FundType]
+                )
+                raise HTTPException(status_code=400, detail=error_detail)
+        
+        # 验证日期范围
+        if start_upload_date and end_upload_date and start_upload_date > end_upload_date:
+            error_detail = f"开始日期 ({start_upload_date}) 不能晚于结束日期 ({end_upload_date})"
+            bound_logger.warning(
+                "api.reports.search.invalid_date_range",
+                start_date=start_upload_date,
+                end_date=end_upload_date
+            )
+            raise HTTPException(status_code=400, detail=error_detail)
         
         # 构建搜索条件
         criteria = FundSearchCriteria(

@@ -35,8 +35,8 @@ app.conf.update(
 
     # 任务路由配置
     task_routes={
-        'tasks.download_fund_report': {'queue': 'download'},
-        'tasks.test_celery': {'queue': 'default'},
+        'src.tasks.download_tasks.download_fund_report_task': {'queue': 'download'},
+        'src.tasks.download_tasks.test_celery_task': {'queue': 'default'},
     },
 
     # 队列设置
@@ -61,9 +61,9 @@ app.conf.update(
     task_time_limit=600,  # 硬时间限制10分钟
 
     # 监控和事件设置 (Windows兼容)
-    worker_send_task_events=True,  # 发送任务事件
-    task_send_sent_event=True,  # 发送任务发送事件
-    task_track_started=True,  # 追踪任务开始状态
+    worker_send_task_events=False,  # 禁用任务事件发送
+    task_send_sent_event=False,  # 禁用任务发送事件
+    task_track_started=False,  # 禁用任务开始状态追踪
 
     # 日志设置
     worker_hijack_root_logger=False,
@@ -77,12 +77,12 @@ app.conf.update(
 # 队列配置 (可选的高级配置)
 app.conf.task_routes.update({
     # 下载任务使用专用队列
-    'tasks.download_fund_report': {
+    'src.tasks.download_tasks.download_fund_report_task': {
         'queue': 'download',
         'routing_key': 'download',
     },
     # 测试任务使用默认队列
-    'tasks.test_celery': {
+    'src.tasks.download_tasks.test_celery_task': {
         'queue': 'default',
         'routing_key': 'default',
     }
@@ -130,7 +130,7 @@ def validate_configuration():
 
         # 验证任务注册
         registered_tasks = list(app.tasks.keys())
-        expected_tasks = ['tasks.download_fund_report', 'tasks.test_celery']
+        expected_tasks = ['src.tasks.download_tasks.download_fund_report_task', 'src.tasks.download_tasks.test_celery_task']
 
         for task in expected_tasks:
             if task in registered_tasks:
@@ -147,3 +147,10 @@ def validate_configuration():
 
 # 自动应用Windows优化
 configure_for_windows()
+
+# 确保任务模块被导入和注册
+try:
+    import src.tasks.download_tasks
+    logger.info("celery.tasks.imported", module="src.tasks.download_tasks")
+except ImportError as e:
+    logger.error("celery.tasks.import_failed", module="src.tasks.download_tasks", error=str(e))

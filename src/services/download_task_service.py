@@ -660,6 +660,70 @@ class DownloadTaskService:
             )
             raise
 
+    def update_task_celery_id_sync(
+        self,
+        task_id: str,
+        celery_task_id: str
+    ) -> bool:
+        """更新任务的Celery任务ID (同步版本)"""
+        bound_logger = logger.bind(
+            task_id=task_id,
+            celery_task_id=celery_task_id,
+            use_database=self.use_database
+        )
+
+        bound_logger.info("download_task_service.update_celery_id_sync.start")
+
+        try:
+            if self.use_database:
+                from src.models.download_task import DownloadTaskModel
+
+                with self._get_session() as session:
+                    db_task = session.query(DownloadTaskModel).filter_by(task_id=task_id).first()
+                    if not db_task:
+                        bound_logger.warning("download_task_service.update_celery_id_sync.task_not_found")
+                        return False
+
+                    # 检查是否有celery_task_id字段，如果没有则跳过
+                    if hasattr(db_task, 'celery_task_id'):
+                        db_task.celery_task_id = celery_task_id
+                        session.commit()
+                        
+                        bound_logger.info(
+                            "download_task_service.update_celery_id_sync.success",
+                            db_id=db_task.id
+                        )
+                    else:
+                        bound_logger.warning(
+                            "download_task_service.update_celery_id_sync.field_not_exists",
+                            message="celery_task_id字段不存在于数据库模型中"
+                        )
+            else:
+                task = self._tasks.get(task_id)
+                if not task:
+                    bound_logger.warning("download_task_service.update_celery_id_sync.task_not_found")
+                    return False
+
+                # 为内存模式的任务添加celery_task_id属性
+                if not hasattr(task, 'celery_task_id'):
+                    task.celery_task_id = celery_task_id
+                else:
+                    task.celery_task_id = celery_task_id
+
+                bound_logger.info(
+                    "download_task_service.update_celery_id_sync.success"
+                )
+
+            return True
+
+        except Exception as e:
+            bound_logger.error(
+                "download_task_service.update_celery_id_sync.error",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            return False
+
     def create_task_sync(self, task: DownloadTask) -> DownloadTask:
         """创建新的下载任务 (同步版本)"""
         bound_logger = logger.bind(
