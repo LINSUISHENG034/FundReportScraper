@@ -161,6 +161,33 @@ class DownloadTaskService:
             )
             raise
     
+    async def create_and_dispatch_task(self, report_ids: List[str], save_dir: str) -> str:
+        """
+        创建下载任务并将其分发到Celery
+        """
+        from src.tasks.download_tasks import download_fund_report_task
+        import uuid
+
+        task_id = str(uuid.uuid4())
+        task = DownloadTask(
+            task_id=task_id,
+            report_ids=report_ids,
+            save_dir=save_dir,
+            max_concurrent=3,  # 保持与API一致
+            status=TaskStatus.PENDING,
+            created_at=datetime.utcnow(),
+            total_count=len(report_ids)
+        )
+        await self.create_task(task)
+
+        celery_task = download_fund_report_task.delay(task_id)
+        logger.info(
+            "download_task_service.task_dispatched",
+            task_id=task_id,
+            celery_task_id=celery_task.id
+        )
+        return task_id
+
     async def get_task(self, task_id: str) -> Optional[DownloadTask]:
         """
         获取指定的下载任务

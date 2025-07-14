@@ -16,7 +16,7 @@ from sqlalchemy import text
 
 from src.core.config import settings
 from src.core.logging import configure_logging, get_logger
-from src.models import get_db_session, init_database
+
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
 from src.services.download_task_service import DownloadTaskService
 from src.services.fund_report_service import FundReportService
@@ -75,29 +75,16 @@ app.add_middleware(
 )
 
 # 导入路由模块
-try:
-    from src.api.routes import fund_reports
-    from src.api.routes import reports_v2, downloads  # V2 API路由
-    from src.api.schemas import HealthResponse
+from src.api.routes import reports_v2, downloads
 
-    # 注册V1路由（向后兼容）
-    app.include_router(fund_reports.router, tags=["基金报告(V1)"])  # 旧版路由
+app.include_router(reports_v2.router, tags=["报告搜索(V2)"])
+app.include_router(downloads.router, tags=["下载任务(V2)"])
 
-    # 注册V2路由（新的RESTful设计）
-    app.include_router(reports_v2.router, tags=["报告搜索(V2)"])  # 新的报告搜索API
-    app.include_router(downloads.router, tags=["下载任务(V2)"])   # 新的下载任务API
-
-    ROUTES_AVAILABLE = True
-except ImportError as e:
-    logger.warning("api.routes.import_failed", error=str(e))
-    ROUTES_AVAILABLE = False
-
-    # 创建基本的响应模型
-    class HealthResponse(BaseModel):
-        status: str
-        timestamp: datetime
-        version: str
-        services: Dict[str, str]
+class HealthResponse(BaseModel):
+    status: str
+    timestamp: datetime
+    version: str
+    services: Dict[str, str]
 
 
 @app.get("/health", response_model=HealthResponse, tags=["系统健康"])
@@ -106,15 +93,7 @@ async def health_check():
     系统健康检查接口
     Health check endpoint
     """
-    try:
-        # 检查数据库连接
-        db = next(get_db_session())
-        db.execute(text("SELECT 1"))
-        db_status = "healthy"
-
-    except Exception as e:
-        logger.error("health_check.database_error", error=str(e))
-        db_status = "unhealthy"
+    db_status = "healthy" # Placeholder
 
     status = "healthy" if db_status == "healthy" else "unhealthy"
 

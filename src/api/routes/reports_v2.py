@@ -17,7 +17,6 @@ from src.core.fund_search_parameters import (
 )
 from src.services.fund_report_service import FundReportService
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
-from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
 
 
 logger = get_logger(__name__)

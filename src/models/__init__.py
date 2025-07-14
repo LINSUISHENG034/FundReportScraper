@@ -1,13 +1,15 @@
 """Models package initialization."""
 
-from .database import (
-    Base, Fund, FundReport, AssetAllocation, TopHolding, 
-    IndustryAllocation, ScrapingTask, ReportType, TaskStatus
-)
-from .connection import db_manager, get_db_session, init_database
+from .download_task import DownloadTaskModel, create_download_task_table, get_download_task_table_info
+from .fund_data import FundReport, AssetAllocation, TopHolding, IndustryAllocation, create_fund_data_tables
 
 __all__ = [
-    "Base", "Fund", "FundReport", "AssetAllocation", "TopHolding",
-    "IndustryAllocation", "ScrapingTask", "ReportType", "TaskStatus",
-    "db_manager", "get_db_session", "init_database"
+    "DownloadTaskModel",
+    "create_download_task_table",
+    "get_download_task_table_info",
+    "FundReport",
+    "AssetAllocation",
+    "TopHolding",
+    "IndustryAllocation",
+    "create_fund_data_tables",
 ]

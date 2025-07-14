@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from src.core.logging import get_logger
 from src.services.fund_report_service import FundReportService
 from src.services.download_task_service import DownloadTaskService, DownloadTask, TaskStatus
-from src.models import get_db_session
+
 from src.parsers.xbrl_parser import XBRLParser
 from src.services.fund_data_service import FundDataService
 from src.tasks.download_tasks import download_fund_report_task  # Phase 5新增

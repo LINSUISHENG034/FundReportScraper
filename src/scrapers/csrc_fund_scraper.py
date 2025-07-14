@@ -229,17 +229,29 @@ class CSRCFundReportScraper(BaseScraper):
         """
         display_start = (page - 1) * page_size
 
+        # 定义报告类型映射
+        report_type_mapping = {
+            NewReportType.QUARTERLY_Q1: "FB030010",
+            NewReportType.QUARTERLY_Q2: "FB030020",
+            NewReportType.QUARTERLY_Q3: "FB030030",
+            NewReportType.SEMI_ANNUAL: "FB020000",
+            NewReportType.ANNUAL: "FB010000",
+            NewReportType.PROSPECTUS: "FB040000",
+            NewReportType.LISTING_ANNOUNCEMENT: "FB070000",
+            NewReportType.FUND_PROFILE: "FB080000",
+        }
+
         # 直接使用新的报告类型枚举值
         if isinstance(report_type, NewReportType):
             report_type_code = report_type.value
         else:
-            # 向后兼容旧的ReportType
-            report_type_mapping = {
+            # 兼容旧的 ReportType
+            legacy_report_type_mapping = {
                 ReportType.QUARTERLY: NewReportType.QUARTERLY_Q1.value,
                 ReportType.SEMI_ANNUAL: NewReportType.SEMI_ANNUAL.value,
                 ReportType.ANNUAL: NewReportType.ANNUAL.value
             }
-            report_type_code = report_type_mapping.get(report_type, NewReportType.QUARTERLY_Q1.value)
+            report_type_code = legacy_report_type_mapping.get(report_type, NewReportType.QUARTERLY_Q1.value)
 
         # 处理特殊情况：基金产品资料概要需要空的reportYear
         report_year = "" if report_type_code == NewReportType.FUND_PROFILE.value else str(year)
@@ -270,7 +282,7 @@ class CSRCFundReportScraper(BaseScraper):
         logger.debug(
             "csrc_scraper.ao_data_built",
             ao_data=ao_data,
-            report_type_code=report_type_mapping.get(report_type, "FB030010"),
+            report_type_code=report_type_code,
             fund_type=fund_type,
             year=year
         )
