@@ -129,7 +129,7 @@ class BaseScraper(ABC):
         Raises:
             NetworkError: On network or HTTP errors
         """
-        if not self.session:
+        if self.session is None:
             await self.start_session()
         
         # Rate limiting

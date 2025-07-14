@@ -18,33 +18,18 @@ from src.core.fund_search_parameters import (
 from src.services.fund_report_service import FundReportService
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
-from src.main import get_scraper
+
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/v1/reports", tags=["报告搜索"])
+router = APIRouter(prefix="/api/v2/reports", tags=["报告搜索 (V2)"])
 
 
-def get_scraper() -> CSRCFundReportScraper:
-    """获取爬虫实例"""
-    from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
-    import httpx
+from fastapi import Request
 
-    # 为测试环境创建独立的HTTP客户端
-    session = httpx.AsyncClient(
-        timeout=30.0,
-        follow_redirects=True,
-        headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-    )
-
-    return CSRCFundReportScraper(session=session)
-
-
-def get_fund_report_service(scraper: CSRCFundReportScraper = Depends(get_scraper)) -> FundReportService:
-    """获取基金报告服务实例"""
-    return FundReportService(scraper)
+def get_fund_report_service(request: Request) -> FundReportService:
+    """获取共享的基金报告服务实例"""
+    return request.app.state.fund_report_service
 
 
 # Pydantic 响应模型
@@ -152,30 +137,26 @@ async def search_reports(
             )
         
         # 转换数据格式
-        reports_data = search_result["data"]
-        report_items = []
-        
-        for report in reports_data:
-            report_item = ReportItem(
-                upload_info_id=report.get("uploadInfoId", ""),
-                fund_code=report.get("fundCode", ""),
-                fund_id=report.get("fundId", ""),
-                fund_short_name=report.get("fundShortName", ""),
-                organ_name=report.get("organName", ""),
-                report_send_date=report.get("reportSendDate", ""),
-                report_description=report.get("reportDesp", "")
+        reports_data = search_result.get("data", [])
+        report_items = [
+            ReportItem(
+                upload_info_id=report.get("uploadInfoId"),
+                fund_code=report.get("fundCode"),
+                fund_id=report.get("fundId"),
+                fund_short_name=report.get("fundShortName"),
+                organ_name=report.get("organName"),
+                report_send_date=report.get("reportSendDate"),
+                report_description=report.get("reportDesp")
             )
-            report_items.append(report_item)
-        
-        # 计算分页信息
-        total_items = len(report_items)
-        total_pages = (total_items + page_size - 1) // page_size if total_items > 0 else 0
-        
+            for report in reports_data
+        ]
+
+        # 使用从服务层返回的准确分页信息
         pagination = PaginationInfo(
-            page=page,
-            page_size=page_size,
-            total_items=total_items,
-            total_pages=total_pages
+            page=criteria.page,
+            page_size=criteria.page_size,
+            total_items=search_result.get("total_count", 0),
+            total_pages=search_result.get("total_pages", 0)
         )
         
         # 构建搜索条件信息
@@ -201,7 +182,7 @@ async def search_reports(
         
         bound_logger.info(
             "api.reports.search.success",
-            total_found=total_items,
+            total_found=pagination.total_items,
             page=page,
             page_size=page_size
         )

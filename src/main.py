@@ -12,12 +12,14 @@ from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from src.core.config import settings
 from src.core.logging import configure_logging, get_logger
 from src.models import get_db_session, init_database
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
 from src.services.download_task_service import DownloadTaskService
+from src.services.fund_report_service import FundReportService
 
 # Configure logging
 configure_logging(
@@ -38,6 +40,8 @@ async def lifespan(app: FastAPI):
     logger.info("application.http_client.created")
 
     # Create services
+    scraper = CSRCFundReportScraper(session=app.state.http_client)
+    app.state.fund_report_service = FundReportService(scraper=scraper)
     app.state.download_task_service = DownloadTaskService()
     logger.info("application.services.created")
     
@@ -69,14 +73,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Dependency for scraper
-def get_scraper(request: Request) -> CSRCFundReportScraper:
-    """
-    Dependency to get a CSRCFundReportScraper instance.
-    """
-    return CSRCFundReportScraper(session=request.app.state.http_client)
-
 
 # 导入路由模块
 try:
@@ -113,7 +109,7 @@ async def health_check():
     try:
         # 检查数据库连接
         db = next(get_db_session())
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db_status = "healthy"
 
     except Exception as e:

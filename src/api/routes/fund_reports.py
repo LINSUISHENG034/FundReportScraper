@@ -9,7 +9,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from pydantic import BaseModel
 
 from src.core.logging import get_logger
@@ -17,22 +17,17 @@ from src.core.fund_search_parameters import (
     FundSearchCriteria, ReportType, FundType, SearchPresets
 )
 from src.services.fund_report_service import FundReportService
-from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
-from src.main import get_scraper # Import get_scraper from main
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/fund-reports", tags=["基金报告"])
 
 
-
-
-
-def get_fund_report_service(scraper: CSRCFundReportScraper = Depends(get_scraper)) -> FundReportService:
+def get_fund_report_service(request: Request) -> FundReportService:
     """
-    依赖注入函数，用于获取 FundReportService 实例
+    依赖注入函数，用于获取共享的 FundReportService 实例
     """
-    return FundReportService(scraper)
+    return request.app.state.fund_report_service
 
 
 class SearchRequest(BaseModel):

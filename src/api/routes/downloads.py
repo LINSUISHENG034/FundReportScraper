@@ -7,9 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 
 from src.core.logging import get_logger
-from src.main import get_scraper
 from src.services.fund_report_service import FundReportService
-from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
 from src.services.download_task_service import DownloadTaskService, DownloadTask, TaskStatus
 from src.models import get_db_session
 from src.parsers.xbrl_parser import XBRLParser
@@ -19,7 +17,7 @@ from pathlib import Path
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/v1/downloads", tags=["下载任务"])
+router = APIRouter(prefix="/api/v2/downloads", tags=["下载任务 (V2)"])
 
 # Pydantic Models
 class DownloadTaskCreateRequest(BaseModel):
@@ -60,8 +58,9 @@ class DownloadTaskStatusResponse(BaseModel):
 def get_download_task_service(request: Request) -> DownloadTaskService:
     return request.app.state.download_task_service
 
-def get_fund_report_service(scraper: CSRCFundReportScraper = Depends(get_scraper)) -> FundReportService:
-    return FundReportService(scraper)
+def get_fund_report_service(request: Request) -> FundReportService:
+    """获取共享的基金报告服务实例"""
+    return request.app.state.fund_report_service
 
 @router.post("", response_model=DownloadTaskCreateResponse, status_code=202)
 async def create_download_task(
@@ -83,7 +82,7 @@ async def create_download_task(
     # Phase 5: 使用Celery任务替代BackgroundTasks
     celery_task = download_fund_report_task.delay(task_id)
 
-    bound_logger.info(
+    logger.info(
         "downloads.create_task.celery_dispatched",
         task_id=task_id,
         celery_task_id=celery_task.id,
