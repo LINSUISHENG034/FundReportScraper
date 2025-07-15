@@ -207,21 +207,21 @@ class FundReportService:
         此方法现在只负责业务流程（构造URL和路径），并将实际下载委托给Downloader服务。
         """
         bound_logger = logger.bind(
-            fund_code=report.get('fundCode', 'Unknown'),
-            upload_info_id=report.get('uploadInfoId', 'Unknown')
+            fund_code=report.get('fund_code', 'Unknown'),
+            upload_info_id=report.get('upload_info_id', 'Unknown')
         )
         bound_logger.info("fund_report_service.download_report.start")
 
         try:
-            upload_info_id = report['uploadInfoId']
-            fund_code = report['fundCode']
+            # 使用 snake_case 访问, 与 API 和任务层保持一致
+            upload_info_id = report['upload_info_id']
+            fund_code = report['fund_code']
 
             # 1. 构造下载URL
             download_url = self.scraper.get_download_url(upload_info_id)
             
-            # 2. 生成文件名和路径
-            timestamp = int(time.time())
-            filename = f"{fund_code}_REPORT_{timestamp}.xbrl"
+            # 2. 生成确定性的文件名和路径，便于验证
+            filename = f"{fund_code}_{upload_info_id}.xbrl"
             file_path = save_dir / filename
 
             # 3. 委托给Downloader服务
@@ -242,10 +242,10 @@ class FundReportService:
         except KeyError as e:
             error_msg = f"报告字典中缺少关键字段: {e}"
             bound_logger.error("fund_report_service.download_report.missing_key", error=error_msg)
-            return {"success": False, "error": error_msg, "fund_code": report.get('fundCode', 'Unknown')}
+            return {"success": False, "error": error_msg, "fund_code": report.get('fund_code', 'Unknown')}
         except Exception as e:
             bound_logger.error("fund_report_service.download_report.error", error=str(e), error_type=type(e).__name__)
-            return {"success": False, "error": str(e), "fund_code": report.get('fundCode', 'Unknown')}
+            return {"success": False, "error": str(e), "fund_code": report.get('fund_code', 'Unknown')}
     
     # batch_download, enhanced_batch_download, and all _sync methods have been removed
     # as per the Phase 3 refactoring plan.

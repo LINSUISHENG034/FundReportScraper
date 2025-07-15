@@ -177,13 +177,13 @@ async def search_reports(
         reports_data = search_result.get("data", [])
         report_items = [
             ReportItem(
-                upload_info_id=report.get("uploadInfoId"),
-                fund_code=report.get("fundCode"),
-                fund_id=report.get("fundId"),
-                fund_short_name=report.get("fundShortName"),
-                organ_name=report.get("organName"),
-                report_send_date=report.get("reportSendDate"),
-                report_description=report.get("reportDesp")
+                upload_info_id=report.get("upload_info_id"),
+                fund_code=report.get("fund_code"),
+                fund_id=report.get("fund_id"),
+                fund_short_name=report.get("fund_short_name"),
+                organ_name=report.get("organ_name"),
+                report_send_date=report.get("report_send_date"),
+                report_description=report.get("report_desp")
             )
             for report in reports_data
         ]

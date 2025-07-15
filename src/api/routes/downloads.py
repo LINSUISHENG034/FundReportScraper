@@ -1,7 +1,7 @@
 
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
@@ -21,8 +21,8 @@ router = APIRouter(prefix="/api/downloads", tags=["下载任务"])
 
 # Pydantic Models
 class DownloadTaskCreateRequest(BaseModel):
-    report_ids: List[int] = Field(..., min_items=1)
-    save_dir: Optional[str] = "data/downloads"
+    reports: List[Dict[str, Any]] = Field(..., description="从搜索接口获得的报告对象列表")
+    save_dir: Optional[str] = Field("data/downloads", description="文件保存目录")
 
 class DownloadTaskCreateResponse(BaseModel):
     success: bool
@@ -66,14 +66,18 @@ async def create_download_task(
 ) -> DownloadTaskCreateResponse:
     task_id = str(uuid.uuid4())
     
-    # Phase 3: 直接使用Celery任务编排系统
-    celery_task = start_download_pipeline.delay(task_id)
+    # Phase 4.5: 直接将报告列表和保存路径传递给Celery任务
+    celery_task = start_download_pipeline.delay(
+        task_id=task_id,
+        reports_to_process=request.reports,
+        save_dir=request.save_dir
+    )
 
     logger.info(
         "downloads.create_task.celery_dispatched",
         task_id=task_id,
         celery_task_id=celery_task.id,
-        report_count=len(request.report_ids)
+        report_count=len(request.reports)
     )
 
     return DownloadTaskCreateResponse(

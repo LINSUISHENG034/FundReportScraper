@@ -12,7 +12,7 @@ from urllib.parse import urlencode
 from src.core.config import settings
 from src.core.logging import get_logger
 from src.core.fund_search_parameters import FundSearchCriteria, ReportType, FundType
-from httpx import AsyncClient
+from aiohttp import ClientSession
 from src.scrapers.base import BaseScraper, ParseError
 
 logger = get_logger(__name__)
@@ -24,7 +24,7 @@ class CSRCFundReportScraper(BaseScraper):
     CSRC fund report scraper following documentation guidance
     """
     
-    def __init__(self, session: Optional[AsyncClient] = None):
+    def __init__(self, session: Optional[ClientSession] = None):
         super().__init__(base_url=settings.target.base_url, session=session)
         self.search_url = settings.target.search_url
         self.instance_url = settings.target.instance_url
@@ -93,7 +93,7 @@ class CSRCFundReportScraper(BaseScraper):
             response = await self.get(url)
             
             # 解析响应
-            data = response.json()
+            data = await response.json()
             
             # 提取报告信息
             reports = []
@@ -149,36 +149,46 @@ class CSRCFundReportScraper(BaseScraper):
             }
 
             # 发送请求
-            response = await self.session.get(self.search_url, params=params)
-
-            if response.status_code == 200:
+            response = await self.get(self.search_url, params=params)
+            
+            if response.status == 200:
                 # 强制解析JSON，忽略Content-Type（基于验证结果）
                 try:
-                    data = response.json()
-                    reports = data.get('aaData', [])
+                    # 先获取文本，然后手动解析JSON（参考MVP脚本的成功做法）
+                    text = await response.text()
+                    data = json.loads(text)
+                    
+                    # 关键修复：调用 _parse_report_item 来处理每一条记录
+                    parsed_reports = []
+                    for item in data.get('aaData', []):
+                        report = self._parse_report_item(item)
+                        if report:
+                            parsed_reports.append(report)
 
                     bound_logger.info(
                         "csrc_scraper.search_reports.success",
                         total_records=data.get('iTotalRecords', 0),
-                        returned_count=len(reports)
+                        returned_count=len(parsed_reports)
                     )
 
-                    return reports
+                    return parsed_reports
 
                 except Exception as json_error:
+                    response_text = await response.text() if 'text' not in locals() else text
                     bound_logger.error(
                         "csrc_scraper.search_reports.json_parse_error",
                         error=str(json_error),
-                        response_text=response.text[:200]
+                        response_text=response_text[:200]
                     )
                     raise ParseError(f"JSON解析失败: {json_error}")
             else:
+                response_text = await response.text()
                 bound_logger.error(
                     "csrc_scraper.search_reports.http_error",
-                    status_code=response.status_code,
-                    response_text=response.text[:200]
+                    status_code=response.status,
+                    response_text=response_text[:200]
                 )
-                raise ParseError(f"HTTP请求失败: {response.status_code}")
+                raise ParseError(f"HTTP请求失败: {response.status}")
 
         except Exception as e:
             bound_logger.error(
@@ -294,9 +304,21 @@ class CSRCFundReportScraper(BaseScraper):
         try:
             # 处理字典格式的响应数据
             if isinstance(item, dict):
+                # 防御性编程：检查关键字段是否存在且不为空
+                upload_info_id = item.get("uploadInfoId")
+                fund_code = item.get("fundCode")
+                if not upload_info_id or not fund_code:
+                    logger.warning(
+                        "csrc_scraper.parse_item.missing_critical_fields",
+                        item=item,
+                        reason="uploadInfoId or fundCode is missing or empty."
+                    )
+                    return None
+
+                # 关键修复：将所有 camelCase 键转换为 snake_case 键，统一数据契约
                 report = {
-                    "upload_info_id": item.get("uploadInfoId"),
-                    "fund_code": item.get("fundCode"),
+                    "upload_info_id": upload_info_id,
+                    "fund_code": fund_code,
                     "fund_short_name": item.get("fundShortName"),
                     "organ_name": item.get("organName"),
                     "report_year": item.get("reportYear"),
@@ -308,14 +330,6 @@ class CSRCFundReportScraper(BaseScraper):
                     "fund_sign": item.get("fundSign"),
                     "raw_data": item
                 }
-
-                # 验证必要字段（uploadInfoId是关键）
-                if not report["upload_info_id"]:
-                    logger.warning(
-                        "csrc_scraper.parse_item.missing_upload_info_id",
-                        item=item
-                    )
-                    return None
 
                 logger.debug(
                     "csrc_scraper.parse_item.success",

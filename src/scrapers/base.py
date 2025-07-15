@@ -8,8 +8,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 from urllib.parse import urljoin
 
-import httpx
-from httpx import AsyncClient, Response
+import aiohttp
+from aiohttp import ClientSession, ClientResponse
 
 from src.core.config import settings
 from src.core.logging import get_logger
@@ -39,7 +39,7 @@ class BaseScraper(ABC):
     基础爬虫类，提供通用的爬取功能。
     """
     
-    def __init__(self, base_url: str = None, rate_limiter: RateLimiter = None, session: Optional[AsyncClient] = None):
+    def __init__(self, base_url: str = None, rate_limiter: RateLimiter = None, session: Optional[ClientSession] = None):
         """
         Initialize base scraper.
         
@@ -65,7 +65,7 @@ class BaseScraper(ABC):
             "Upgrade-Insecure-Requests": "1",
         }
         
-        self.timeout = httpx.Timeout(settings.scraper.timeout)
+        self.timeout = aiohttp.ClientTimeout(total=settings.scraper.timeout)
         
         logger.info(
             "scraper.initialized",
@@ -86,18 +86,17 @@ class BaseScraper(ABC):
     async def start_session(self) -> None:
         """Start HTTP session."""
         if self.session is None:
-            self.session = AsyncClient(
+            self.session = ClientSession(
                 headers=self.headers,
                 timeout=self.timeout,
-                follow_redirects=True,
-                verify=True,
+                connector=aiohttp.TCPConnector(verify_ssl=True),
             )
             logger.info("scraper.session.started")
     
     async def close_session(self) -> None:
         """Close HTTP session."""
         if self.session:
-            await self.session.aclose()
+            await self.session.close()
             self.session = None
             logger.info("scraper.session.closed")
     
@@ -110,7 +109,7 @@ class BaseScraper(ABC):
         json_data: Dict = None,
         headers: Dict = None,
         **kwargs
-    ) -> Response:
+    ) -> ClientResponse:
         """
         Make HTTP request with rate limiting and error handling.
         
@@ -170,31 +169,37 @@ class BaseScraper(ABC):
                     **kwargs
                 )
                 
+                # Read response content
+                content = await response.read()
+                
                 request_log.info(
                     "scraper.request.success",
-                    status_code=response.status_code,
-                    response_size=len(response.content),
+                    status_code=response.status,
+                    response_size=len(content),
                     attempt=attempt + 1
                 )
                 
                 # Check for HTTP errors
                 response.raise_for_status()
+                
+                # Store content for later access
+                response._content = content
                 return response
                 
-            except httpx.HTTPStatusError as e:
+            except aiohttp.ClientResponseError as e:
                 last_exception = e
                 request_log.warning(
                     "scraper.request.http_error",
-                    status_code=e.response.status_code,
+                    status_code=e.status,
                     error=str(e),
                     attempt=attempt + 1
                 )
                 
                 # Don't retry client errors (4xx)
-                if 400 <= e.response.status_code < 500:
-                    raise NetworkError(f"HTTP {e.response.status_code}: {e}")
+                if 400 <= e.status < 500:
+                    raise NetworkError(f"HTTP {e.status}: {e}")
                 
-            except (httpx.RequestError, httpx.TimeoutException) as e:
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 last_exception = e
                 request_log.warning(
                     "scraper.request.network_error",
@@ -215,11 +220,11 @@ class BaseScraper(ABC):
         # All retries failed
         raise NetworkError(f"Request failed after {max_retries + 1} attempts: {last_exception}")
     
-    async def get(self, url: str, **kwargs) -> Response:
+    async def get(self, url: str, **kwargs) -> ClientResponse:
         """Make GET request."""
         return await self.request("GET", url, **kwargs)
     
-    async def post(self, url: str, **kwargs) -> Response:
+    async def post(self, url: str, **kwargs) -> ClientResponse:
         """Make POST request."""
         return await self.request("POST", url, **kwargs)
     

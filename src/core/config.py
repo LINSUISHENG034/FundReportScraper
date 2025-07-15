@@ -87,6 +87,14 @@ class LoggingSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LOGGING_")
 
 
+class DownloaderSettings(BaseSettings):
+    """Downloader configuration settings."""
+    
+    save_path: str = Field(default="data/downloads")
+    
+    model_config = SettingsConfigDict(env_prefix="DOWNLOADER_")
+
+
 class AppSettings(BaseSettings):
     """Application configuration settings."""
     
@@ -102,6 +110,7 @@ class AppSettings(BaseSettings):
     celery: CelerySettings = Field(default_factory=CelerySettings)
     scraper: ScraperSettings = Field(default_factory=ScraperSettings)
     target: TargetSettings = Field(default_factory=TargetSettings)
+    downloader: DownloaderSettings = Field(default_factory=DownloaderSettings)
     
     model_config = SettingsConfigDict(env_prefix="APP_", env_file=".env", env_file_encoding="utf-8")
 
@@ -117,6 +126,7 @@ def get_settings() -> AppSettings:
         celery=CelerySettings(),
         scraper=ScraperSettings(),
         target=TargetSettings(),
+        downloader=DownloaderSettings(),
     )
 
 

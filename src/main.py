@@ -3,7 +3,7 @@ Main FastAPI application entry point.
 基金报告自动化采集与分析平台 - 统一应用入口
 """
 
-import httpx
+import aiohttp
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import List, Dict, Any
@@ -27,28 +27,31 @@ configure_logging()
 logger = get_logger(__name__)
 
 
-def create_app(http_client: httpx.AsyncClient = None) -> FastAPI:
+def create_app(http_client: aiohttp.ClientSession = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         """Application lifespan management."""
         logger.info("application.startup")
         
-        # Create httpx client
-        app.state.http_client = http_client or httpx.AsyncClient()
+        # Create aiohttp client
+        # 关键修复：在Session级别添加User-Agent，与Celery任务保持一致
+        app.state.http_client = http_client or aiohttp.ClientSession(
+            headers={'User-Agent': settings.scraper.user_agent}
+        )
         logger.info("application.http_client.created")
 
         # Create services
         scraper = CSRCFundReportScraper(session=app.state.http_client)
         from src.services.downloader import Downloader
-        downloader = Downloader(http_client=app.state.http_client)
+        downloader = Downloader()  # Downloader creates its own session
         app.state.fund_report_service = FundReportService(scraper=scraper, downloader=downloader)
 
         logger.info("application.services.created")
         
         yield
         
-        # Close httpx client
-        await app.state.http_client.aclose()
+        # Close aiohttp client
+        await app.state.http_client.close()
         logger.info("application.http_client.closed")
         logger.info("application.shutdown")
     """Create and configure the FastAPI application."""

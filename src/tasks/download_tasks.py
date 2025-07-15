@@ -5,7 +5,7 @@ Download Tasks (Celery) - Phase 3 Correct Implementation
 来构建一个健壮、可测试、解耦的后台任务系统。
 """
 
-import httpx
+import aiohttp
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any
@@ -31,17 +31,23 @@ logger = get_logger(__name__)
 # 这里为了简化，我们在任务内部获取它们，但在大型应用中应使用更高级的DI框架。
 # ============================================================================
 
-def get_services():
-    """集中创建和提供服务实例，避免在每个任务中重复创建。"""
-    # 注意：httpx.AsyncClient 应该在整个worker生命周期中复用
-    # 但由于gevent的限制，每次任务创建一个新的client是更安全的选择。
-    http_client = httpx.AsyncClient(follow_redirects=True, timeout=30.0)
-    downloader = Downloader(http_client)
-    scraper = CSRCFundReportScraper(session=http_client)
+async def get_services():
+    """
+    (异步)集中创建和提供服务实例。
+    现在是异步的，以正确处理 aiohttp.ClientSession 的创建。
+    """
+    downloader = Downloader()
+    # 增加超时时间以应对目标服务器响应缓慢的情况
+    # 关键修复：在Session级别添加User-Agent，模拟真实浏览器，解决请求挂起问题
+    session = aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=30.0),
+        headers={'User-Agent': settings.scraper.user_agent}
+    )
+    scraper = CSRCFundReportScraper(session=session)
     fund_report_service = FundReportService(scraper, downloader)
     parser = XBRLParser()
     
-    return fund_report_service, parser
+    return fund_report_service, parser, session
 
 # ============================================================================
 # 测试任务 (Test Tasks)
@@ -66,22 +72,34 @@ def test_celery_task(self):
 # 它们不应该自己创建依赖，而是通过某种方式被注入。
 # ============================================================================
 
-@celery_app.task(bind=True, autoretry_for=(httpx.HTTPError,), retry_kwargs={'max_retries': 3, 'countdown': 60})
+async def _async_download_logic(report_info: Dict, save_dir: str) -> Dict:
+    """将所有异步逻辑封装在此函数中，以便从同步的Celery任务中调用。"""
+    fund_report_service, _, session = await get_services()
+    try:
+        download_result = await fund_report_service.download_report(
+            report=report_info,
+            save_dir=Path(save_dir)
+        )
+        return download_result
+    finally:
+        # 确保每个任务创建的 session 都被关闭
+        if session:
+            await session.close()
+
+@celery_app.task(bind=True, autoretry_for=(aiohttp.ClientError,), retry_kwargs={'max_retries': 3, 'countdown': 60})
 def download_report_chain(self, report_info: Dict, save_dir: str) -> Dict:
     """
     原子任务：下载单个报告。
     这是任务链的第一步。
     """
-    bound_logger = logger.bind(upload_info_id=report_info.get("uploadInfoId"), celery_task_id=self.request.id)
+    bound_logger = logger.bind(upload_info_id=report_info.get("upload_info_id"), celery_task_id=self.request.id)
     bound_logger.info("download_report_chain.start")
     
-    fund_report_service, _ = get_services()
-    
-    # gevent worker可以直接运行异步代码
+    # 使用 run_async_task 运行我们封装的异步逻辑
     download_result = run_async_task(
-        fund_report_service.download_report,
-        report=report_info,
-        save_dir=Path(save_dir)
+        _async_download_logic,
+        report_info=report_info,
+        save_dir=save_dir
     )
     
     if not download_result.get("success"):
@@ -103,7 +121,8 @@ def parse_report_chain(self, download_result: Dict) -> Dict:
     bound_logger = logger.bind(upload_info_id=download_result.get("upload_info_id"), celery_task_id=self.request.id)
     bound_logger.info("parse_report_chain.start")
 
-    _, parser = get_services()
+    # 解析任务是纯CPU密集型的，不需要异步服务
+    parser = XBRLParser()
     file_path = Path(download_result["file_path"])
     parsed_data = parser.parse_file(file_path)
 
@@ -173,44 +192,34 @@ def finalize_batch_download(self, results: List[Dict], task_id: str):
 
 
 @celery_app.task(bind=True)
-def start_download_pipeline(self, task_id: str):
+def start_download_pipeline(self, task_id: str, reports_to_process: List[Dict[str, Any]], save_dir: str):
     """
     启动下载流水线的总入口任务。
+    此任务现在直接接收需要处理的报告列表，不再执行任何搜索操作。
     """
     bound_logger = logger.bind(task_id=task_id, celery_task_id=self.request.id)
-    bound_logger.info("start_download_pipeline.start")
-
-    fund_report_service, _ = get_services()
+    bound_logger.info("start_download_pipeline.start", report_count=len(reports_to_process))
 
     # TODO: 实现新的任务状态管理逻辑
     # 目前直接开始处理
     bound_logger.info("start_download_pipeline.task_started", task_id=task_id)
     
-    # 注意：在真实应用中，get_reports_by_ids 应该是一个高效的数据库查询，而不是全页扫描。
-    # 这里我们假设它返回了我们需要的信息。
-    # 同时，由于gevent可以直接运行异步代码，我们在这里调用异步版本。
-    reports_to_process = run_async_task(fund_report_service.search_all_pages, criteria=FundSearchCriteria(year=2024, report_type=ReportType.ANNUAL))
-    # In a real scenario, you would fetch reports based on task.report_ids
-    # reports_to_process = run_async_task(fund_report_service.get_reports_by_ids, task.report_ids)
-    
-    if not reports_to_process or not reports_to_process.get('data'):
+    if not reports_to_process:
         bound_logger.error("start_download_pipeline.no_reports_found", task_id=task_id)
+        # 调用回调以将任务标记为完成，即使没有要处理的报告
+        finalize_batch_download.delay([], task_id)
         return
 
-    # 1. 定义一个完整的处理链
-    #    s() 表示签名，它允许我们将任务及其参数链接起来，而不立即执行。
-    #    clone() 很重要，它确保每个任务链都有自己独立的参数。
-    default_save_dir = "data/downloads"  # 默认保存目录
-    processing_chain = (
-        download_report_chain.s(save_dir=default_save_dir) |
-        parse_report_chain.s() |
-        save_report_chain.s()
-    )
-
-    # 2. 为每个报告创建一个处理链，并将它们组合成一个group
-    #    group(...) 让所有任务链并行执行。
+    # 1. 为每个报告创建一个完整的处理链，并将它们组合成一个group
+    #    chain(...) 将任务链接起来
+    #    s(...) 创建一个带有预设参数的任务签名
+    #    group(...) 让所有任务链并行执行
     job_group = group(
-        processing_chain.clone(args=(report,)) for report in reports_to_process['data']
+        chain(
+            download_report_chain.s(report, save_dir=save_dir),
+            parse_report_chain.s(),
+            save_report_chain.s()
+        ) for report in reports_to_process
     )
 
     # 3. 使用 chord(...) 编排
@@ -219,4 +228,4 @@ def start_download_pipeline(self, task_id: str):
     callback = finalize_batch_download.s(task_id=task_id)
     chord(job_group)(callback)
 
-    bound_logger.info("start_download_pipeline.pipeline_started", report_count=len(reports_to_process['data']))
+    bound_logger.info("start_download_pipeline.pipeline_started", report_count=len(reports_to_process))
