@@ -18,7 +18,7 @@ from src.core.config import settings
 from src.core.logging import configure_logging, get_logger
 
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
-from src.services.download_task_service import DownloadTaskService
+
 from src.services.fund_report_service import FundReportService
 
 # Configure logging
@@ -42,7 +42,7 @@ def create_app(http_client: httpx.AsyncClient = None) -> FastAPI:
         from src.services.downloader import Downloader
         downloader = Downloader(http_client=app.state.http_client)
         app.state.fund_report_service = FundReportService(scraper=scraper, downloader=downloader)
-        app.state.download_task_service = DownloadTaskService()
+
         logger.info("application.services.created")
         
         yield

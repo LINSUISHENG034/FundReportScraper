@@ -8,10 +8,10 @@ from pydantic import BaseModel, Field
 
 from src.core.logging import get_logger
 from src.services.fund_report_service import FundReportService
-from src.services.download_task_service import DownloadTaskService, DownloadTask, TaskStatus
+
 
 from src.parsers.xbrl_parser import XBRLParser
-from src.services.fund_data_service import FundDataService
+
 from src.tasks.download_tasks import start_download_pipeline  # Phase 3重构版本
 from pathlib import Path
 
@@ -55,8 +55,6 @@ class DownloadTaskStatusResponse(BaseModel):
 
 
 # Dependency Injection
-def get_download_task_service(request: Request) -> DownloadTaskService:
-    return request.app.state.download_task_service
 
 def get_fund_report_service(request: Request) -> FundReportService:
     """获取共享的基金报告服务实例"""
@@ -64,22 +62,11 @@ def get_fund_report_service(request: Request) -> FundReportService:
 
 @router.post("", response_model=DownloadTaskCreateResponse, status_code=202)
 async def create_download_task(
-    request: DownloadTaskCreateRequest,
-    task_service: DownloadTaskService = Depends(get_download_task_service)
+    request: DownloadTaskCreateRequest
 ) -> DownloadTaskCreateResponse:
     task_id = str(uuid.uuid4())
-    task = DownloadTask(
-        task_id=task_id,
-        report_ids=request.report_ids,
-        save_dir=request.save_dir,
-        max_concurrent=3, # Hardcoded for now
-        status=TaskStatus.PENDING,
-        created_at=datetime.utcnow(),
-        total_count=len(request.report_ids)
-    )
-    await task_service.create_task(task)
-
-    # Phase 3: 使用新的任务编排系统
+    
+    # Phase 3: 直接使用Celery任务编排系统
     celery_task = start_download_pipeline.delay(task_id)
 
     logger.info(
@@ -97,34 +84,14 @@ async def create_download_task(
 
 @router.get("/{task_id}", response_model=DownloadTaskStatusResponse)
 async def get_download_task_status(
-    task_id: str,
-    task_service: DownloadTaskService = Depends(get_download_task_service)
+    task_id: str
 ) -> DownloadTaskStatusResponse:
-    task = await task_service.get_task(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    progress = ProgressInfo(
-        total=task.total_count,
-        completed=task.completed_count,
-        failed=task.failed_count,
-        percentage=round((task.completed_count / task.total_count) * 100, 2) if task.total_count > 0 else 0.0
+    # TODO: 实现基于Celery任务状态的查询
+    # 目前返回占位符响应
+    raise HTTPException(
+        status_code=501, 
+        detail="任务状态查询功能正在重构中，请使用Celery监控工具查看任务状态"
     )
-    results = TaskResults(
-        completed_ids=task.completed_ids or [],
-        failed_ids=task.failed_results or []
-    )
-    task_status = TaskStatusInfo(
-        task_id=task.task_id,
-        status=task.status.value,
-        created_at=task.created_at,
-        started_at=task.started_at,
-        completed_at=task.completed_at,
-        progress=progress,
-        results=results,
-        error_message=task.error_message
-    )
-    return DownloadTaskStatusResponse(success=True, task_status=task_status)
 
 
 # Phase 5: execute_download_task 函数已迁移到 src/tasks/download_tasks.py

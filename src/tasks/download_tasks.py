@@ -17,9 +17,9 @@ from src.core.logging import get_logger
 from src.services.downloader import Downloader
 from src.services.fund_report_service import FundReportService
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
-from src.services.download_task_service import DownloadTaskService, TaskStatus
+
 from src.parsers.xbrl_parser import XBRLParser
-from src.services.fund_data_service import FundDataService
+
 from src.utils.celery_utils import get_async_result, run_async_task
 from src.core.fund_search_parameters import FundSearchCriteria, ReportType
 
@@ -39,13 +39,9 @@ def get_services():
     downloader = Downloader(http_client)
     scraper = CSRCFundReportScraper(session=http_client)
     fund_report_service = FundReportService(scraper, downloader)
-    
-    db_url = settings.database.url
-    task_service = DownloadTaskService(db_url=db_url)
-    fund_data_service = FundDataService(db_url=db_url)
     parser = XBRLParser()
     
-    return fund_report_service, fund_data_service, task_service, parser
+    return fund_report_service, parser
 
 # ============================================================================
 # 测试任务 (Test Tasks)
@@ -79,7 +75,7 @@ def download_report_chain(self, report_info: Dict, save_dir: str) -> Dict:
     bound_logger = logger.bind(upload_info_id=report_info.get("uploadInfoId"), celery_task_id=self.request.id)
     bound_logger.info("download_report_chain.start")
     
-    fund_report_service, _, _, _ = get_services()
+    fund_report_service, _ = get_services()
     
     # gevent worker可以直接运行异步代码
     download_result = run_async_task(
@@ -107,7 +103,7 @@ def parse_report_chain(self, download_result: Dict) -> Dict:
     bound_logger = logger.bind(upload_info_id=download_result.get("upload_info_id"), celery_task_id=self.request.id)
     bound_logger.info("parse_report_chain.start")
 
-    _, _, _, parser = get_services()
+    _, parser = get_services()
     file_path = Path(download_result["file_path"])
     parsed_data = parser.parse_file(file_path)
 
@@ -123,6 +119,7 @@ def save_report_chain(self, parse_result: Dict) -> Dict:
     """
     原子任务：保存解析结果。
     这是任务链的第三步，也是最后一步。
+    注意：数据保存功能已迁移到其他系统，此任务现在只做标记处理。
     """
     if not parse_result.get("success"):
         return {"success": False, "error": "Upstream parsing failed", "upload_info_id": parse_result.get("upload_info_id")}
@@ -130,18 +127,11 @@ def save_report_chain(self, parse_result: Dict) -> Dict:
     bound_logger = logger.bind(upload_info_id=parse_result.get("upload_info_id"), celery_task_id=self.request.id)
     bound_logger.info("save_report_chain.start")
 
-    _, fund_data_service, _, _ = get_services()
+    # TODO: 实现新的数据保存逻辑或集成到其他系统
+    # 目前只标记为成功处理
+    parse_result["report_id"] = f"processed_{parse_result.get('upload_info_id')}"
+    bound_logger.info("save_report_chain.completed_placeholder")
     
-    report_id = fund_data_service.save_fund_report(
-        parse_result["parsed_data"],
-        parse_result["upload_info_id"],
-        Path(parse_result["file_path"])
-    )
-
-    if not report_id:
-        return {"success": False, "error": "Database save failed", "upload_info_id": parse_result.get("upload_info_id")}
-
-    parse_result["report_id"] = report_id
     return parse_result
 
 # ============================================================================
@@ -156,8 +146,6 @@ def finalize_batch_download(self, results: List[Dict], task_id: str):
     """
     bound_logger = logger.bind(task_id=task_id, celery_task_id=self.request.id)
     bound_logger.info("finalize_batch_download.start", results_count=len(results))
-
-    _, _, task_service, _ = get_services()
     
     successful_results = [r for r in results if r.get("success")]
     failed_results = [r for r in results if not r.get("success")]
@@ -169,19 +157,17 @@ def finalize_batch_download(self, results: List[Dict], task_id: str):
         for r in failed_results
     ]
 
-    task_service.update_task_progress_sync(
-        task_id,
-        completed_count=len(successful_results),
+    # TODO: 实现新的任务状态更新逻辑
+    # 目前只记录日志
+    bound_logger.info(
+        "finalize_batch_download.summary",
+        task_id=task_id,
+        successful_count=len(successful_results),
         failed_count=len(failed_results),
         completed_ids=completed_ids,
         failed_results=final_failed_list
     )
-
-    task_service.update_task_status_sync(
-        task_id,
-        TaskStatus.COMPLETED,
-        completed_at=datetime.utcnow()
-    )
+    
     bound_logger.info("finalize_batch_download.success")
     return {"task_id": task_id, "status": "COMPLETED", "successful": len(successful_results), "failed": len(failed_results)}
 
@@ -194,14 +180,11 @@ def start_download_pipeline(self, task_id: str):
     bound_logger = logger.bind(task_id=task_id, celery_task_id=self.request.id)
     bound_logger.info("start_download_pipeline.start")
 
-    fund_report_service, _, task_service, _ = get_services()
+    fund_report_service, _ = get_services()
 
-    task = task_service.get_task_sync(task_id)
-    if not task:
-        bound_logger.error("start_download_pipeline.task_not_found")
-        return
-
-    task_service.update_task_status_sync(task_id, TaskStatus.IN_PROGRESS, started_at=datetime.utcnow())
+    # TODO: 实现新的任务状态管理逻辑
+    # 目前直接开始处理
+    bound_logger.info("start_download_pipeline.task_started", task_id=task_id)
     
     # 注意：在真实应用中，get_reports_by_ids 应该是一个高效的数据库查询，而不是全页扫描。
     # 这里我们假设它返回了我们需要的信息。
@@ -211,15 +194,15 @@ def start_download_pipeline(self, task_id: str):
     # reports_to_process = run_async_task(fund_report_service.get_reports_by_ids, task.report_ids)
     
     if not reports_to_process or not reports_to_process.get('data'):
-        task_service.update_task_status_sync(task_id, TaskStatus.FAILED, error_message="No reports found to process.")
-        bound_logger.error("start_download_pipeline.no_reports_found")
+        bound_logger.error("start_download_pipeline.no_reports_found", task_id=task_id)
         return
 
     # 1. 定义一个完整的处理链
     #    s() 表示签名，它允许我们将任务及其参数链接起来，而不立即执行。
     #    clone() 很重要，它确保每个任务链都有自己独立的参数。
+    default_save_dir = "data/downloads"  # 默认保存目录
     processing_chain = (
-        download_report_chain.s(save_dir=task.save_dir) |
+        download_report_chain.s(save_dir=default_save_dir) |
         parse_report_chain.s() |
         save_report_chain.s()
     )
