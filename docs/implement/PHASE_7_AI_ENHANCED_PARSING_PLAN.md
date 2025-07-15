@@ -71,3 +71,124 @@ This is a prerequisite for the AI stage. A better rule-based engine reduces reli
 *   **Code Quality:** The AI interaction logic must be well-encapsulated, and API keys must be managed securely via environment variables, not hardcoded.
 
 This hybrid approach will deliver a state-of-the-art parsing system that is both efficient and highly accurate, finally unlocking the true value of our data pipeline.
+
+---
+
+## Appendix A: Local LLM (Ollama) Implementation Guide
+
+This section provides a concrete guide for the development team to implement the AI-powered extraction stage using a local Ollama instance.
+
+### 1. Model Selection
+
+For structured data extraction, we need a model with strong instruction-following and JSON output capabilities.
+
+*   **Primary Recommendation:** `llama3:8b`
+    *   **Why:** Excellent balance of performance, speed, and context window. It has proven to be highly effective at generating structured JSON according to a schema.
+    *   **Command:** `ollama pull llama3:8b`
+*   **Alternative (Lightweight):** `phi3:mini`
+    *   **Why:** A smaller, faster model that is surprisingly powerful. A great option if performance on lower-spec machines is a priority.
+    *   **Command:** `ollama pull phi3:mini`
+
+The team should start with `llama3:8b`.
+
+### 2. Python Implementation (`prompt_for_extraction`)
+
+We will use the official `ollama` Python library for clean and simple integration.
+
+**Installation:**
+```bash
+poetry add ollama
+```
+
+**Example `prompt_for_extraction` function:**
+
+This function should be added to a new utility file, e.g., `src/utils/ai_utils.py`.
+
+```python
+import ollama
+from typing import Dict, Any
+
+def prompt_for_extraction(html_chunk: str, target_schema: str, model: str = "llama3:8b") -> Dict[str, Any]:
+    """
+    Uses a local Ollama model to extract structured data from an HTML chunk.
+
+    Args:
+        html_chunk: A string containing the HTML snippet to parse.
+        target_schema: A string describing the desired JSON output format.
+        model: The Ollama model to use.
+
+    Returns:
+        A dictionary containing the extracted data, or an empty dictionary on failure.
+    """
+    system_prompt = f"""
+    You are an expert data extraction assistant. Your task is to analyze the provided HTML snippet
+    and extract the required information.
+
+    You MUST respond ONLY with a valid JSON object that strictly adheres to the following schema.
+    Do not include any explanations, apologies, or markdown formatting.
+
+    JSON Schema:
+    {target_schema}
+    """
+
+    try:
+        response = ollama.chat(
+            model=model,
+            messages=[
+                {
+                    'role': 'system',
+                    'content': system_prompt,
+                },
+                {
+                    'role': 'user',
+                    'content': f"Here is the HTML snippet to analyze:\n\n{html_chunk}",
+                },
+            ],
+            format='json' # This is the crucial parameter for forcing JSON output
+        )
+        
+        # The ollama library automatically parses the JSON string
+        return response['message']['content']
+
+    except Exception as e:
+        # In a production system, add proper logging here
+        print(f"Error during AI extraction: {e}")
+        return {}
+
+```
+
+### 3. Integration into `XBRLParser`
+
+The development team will need to modify `XBRLParser._parse_basic_info` to call this new function.
+
+**Example Logic:**
+
+```python
+# Inside XBRLParser._parse_basic_info...
+# After running the rule-based methods...
+
+if not report.net_asset_value:
+    # Define the schema for the specific data point
+    nav_schema = '{"net_asset_value": "decimal or null"}'
+    
+    # Intelligently select the HTML chunk
+    # (This logic can be improved, e.g., finding the 20 lines before and after the keyword)
+    text_to_search = "份额净值"
+    if text_to_search in soup.get_text():
+        # This is a placeholder for more intelligent chunking logic
+        html_chunk = soup.prettify() # Simplified for this example
+        
+        # Call the AI utility
+        from src.utils.ai_utils import prompt_for_extraction # Import would be at top of file
+        ai_result = prompt_for_extraction(html_chunk, nav_schema)
+        
+        if ai_result.get("net_asset_value"):
+            try:
+                report.net_asset_value = Decimal(ai_result["net_asset_value"])
+            except (InvalidOperation, TypeError):
+                self.logger.warning("AI returned an invalid decimal for net_asset_value")
+
+# ... repeat for other missing fields ...
+```
+
+This detailed guide provides the development team with a clear, actionable starting point for implementing the AI-enhanced parsing features.

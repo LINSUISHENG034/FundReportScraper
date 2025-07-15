@@ -207,11 +207,11 @@ class XBRLParser:
             if not content: return None
             
             soup = BeautifulSoup(content, "html.parser")
-            text_content = soup.get_text(separator=" ", strip=True)
             
             fund_report = FundReport()
             
-            self._parse_basic_info(text_content, fund_report)
+            # 现在传递soup对象，而不是纯文本
+            self._parse_basic_info(soup, fund_report)
             self._parse_tables(soup, fund_report)
 
             bound_logger.info("xbrl_parser.parse_complete", fund_code=fund_report.fund_code)
@@ -232,31 +232,79 @@ class XBRLParser:
             self.logger.warning("xbrl_parser.file_read_error", error=str(e))
             return None
 
-    def _extract_by_patterns(self, text: str, patterns: List[str]) -> Optional[str]:
-        """使用正则表达式模式提取数据"""
-        for pattern in patterns:
-            match = re.search(pattern, text)
-            if match: return match.group(1).strip()
+    def _find_value_by_label(self, soup: BeautifulSoup, label_patterns: List[str]) -> Optional[str]:
+        """
+        通过标签文本查找对应的值。
+        这是一个更健壮的方法，它利用HTML结构而不是全局regex。
+        """
+        for pattern in label_patterns:
+            try:
+                # 查找包含标签文本的元素。使用 text=... 比 get_text() 更精确
+                label_tag = soup.find(text=re.compile(pattern))
+                if label_tag:
+                    # self.logger.info(f"Found label for '{pattern}' in tag: {label_tag.parent.name}")
+                    
+                    # 策略1：值在同一个标签内，但在标签文本之后
+                    # 例如: <td>基金代码 001234</td>
+                    match = re.search(f"{pattern}\\s*[:：]?\\s*([\\w.-]+)", label_tag)
+                    if match and len(match.group(1)) > 2:
+                        return match.group(1)
+
+                    # 策略2：值在父节点的文本中
+                    parent_text = label_tag.parent.get_text(strip=True)
+                    match = re.search(f"{pattern}\\s*[:：]?\\s*([\\w.-]+)", parent_text)
+                    if match and len(match.group(1)) > 2:
+                        return match.group(1)
+
+                    # 策略3：值在下一个兄弟节点中
+                    next_sibling = label_tag.find_next_sibling()
+                    if next_sibling and next_sibling.get_text(strip=True):
+                        return next_sibling.get_text(strip=True)
+                    
+                    # 策略4：值在父节点的下一个兄弟节点中
+                    parent_sibling = label_tag.parent.find_next_sibling()
+                    if parent_sibling and parent_sibling.get_text(strip=True):
+                        return parent_sibling.get_text(strip=True)
+
+                    # 策略5: 值在同一个表格行(tr)的下一个单元格(td)
+                    row = label_tag.find_parent('tr')
+                    if row:
+                        # 找到包含标签的单元格
+                        label_cell = label_tag.find_parent('td') or label_tag.find_parent('th')
+                        if label_cell:
+                            value_cell = label_cell.find_next_sibling('td')
+                            if value_cell and value_cell.get_text(strip=True):
+                                return value_cell.get_text(strip=True)
+
+            except Exception as e:
+                self.logger.debug(f"Error finding value for pattern '{pattern}': {e}")
+                continue
         return None
 
-    def _parse_basic_info(self, text: str, report: FundReport):
-        """解析基本信息并填充到FundReport对象"""
-        report.fund_code = self._extract_by_patterns(text, self.patterns["fund_code"])
-        report.fund_name = self._extract_by_patterns(text, self.patterns["fund_name"])
+    def _parse_basic_info(self, soup: BeautifulSoup, report: FundReport):
+        """解析基本信息并填充到FundReport对象（使用结构化查找）"""
+        # 使用更可靠的结构化查找方法
+        report.fund_code = self._find_value_by_label(soup, [r"基金主代码", r"基金代码"])
+        report.fund_name = self._find_value_by_label(soup, [r"基金名称", r"基金简称"])
         
-        period_match = self._extract_by_patterns(text, self.patterns["report_period"])
-        if period_match:
-            # This part needs a more robust date parsing logic
-            pass
+        # 对于更复杂的值，可以继续使用更精确的regex在找到的文本上
+        nav_str = self._find_value_by_label(soup, [r"报告期末基金份额净值", r"份额净值"])
+        if nav_str:
+            match = re.search(r"([\d.]+)", nav_str)
+            if match:
+                try:
+                    report.net_asset_value = Decimal(match.group(1))
+                except InvalidOperation:
+                    self.logger.warning(f"Could not parse net_asset_value from '{nav_str}'")
 
-        try:
-            nav_str = self._extract_by_patterns(text, self.patterns["net_asset_value"])
-            if nav_str: report.net_asset_value = Decimal(nav_str)
-            
-            total_assets_str = self._extract_by_patterns(text, self.patterns["total_net_assets"])
-            if total_assets_str: report.total_net_assets = Decimal(total_assets_str.replace(",", ""))
-        except (InvalidOperation, ValueError):
-            self.logger.warning("Failed to parse NAV or total assets.")
+        total_assets_str = self._find_value_by_label(soup, [r"报告期末基金资产净值", r"资产净值"])
+        if total_assets_str:
+            match = re.search(r"([\d,]+\.\d{2})", total_assets_str)
+            if match:
+                try:
+                    report.total_net_assets = Decimal(match.group(1).replace(",", ""))
+                except InvalidOperation:
+                    self.logger.warning(f"Could not parse total_net_assets from '{total_assets_str}'")
 
     def _parse_tables(self, soup: BeautifulSoup, report: FundReport):
         """解析所有表格并填充到FundReport对象"""
