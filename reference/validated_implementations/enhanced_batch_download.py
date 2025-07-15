@@ -9,6 +9,7 @@ import asyncio
 import json
 import time
 import urllib.parse
+import argparse # 1. 导入 argparse 模块
 from pathlib import Path
 from typing import List, Dict, Optional
 import aiohttp
@@ -266,10 +267,10 @@ async def test_batch_download():
         # 搜索少量报告进行下载测试
         criteria = FundSearchCriteria(
             year=2024,
-            # fund_type=FundType.FOF,
             report_type=ReportType.ANNUAL,
-            fund_code="015975",
-            page_size=5,  # 只下载5个进行测试2
+            fund_type=FundType.STOCK,
+            # fund_code="015975",
+            page_size=5,  # 只下载5个进行测试
         )
 
         reports = await processor.search_reports(criteria)
@@ -282,7 +283,7 @@ async def test_batch_download():
             print("❌ 未找到报告，无法测试下载")
 
 
-async def main():
+async def main_interactive():
     """主函数"""
     print("🚀 增强版基金报告下载器")
     print("支持完整的6个搜索参数")
@@ -306,5 +307,28 @@ async def main():
             print("❌ 无效选择，请重试")
 
 
+# 2. 这是您新增的函数，用于直接执行单次下载
+async def run_single_download():
+    """直接执行一次批量下载"""
+    print("🚀 增强版基金报告下载器")
+    await test_batch_download()
+    print("👋 程序执行完毕，再见!")
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    # 3. 设置命令行参数解析
+    parser = argparse.ArgumentParser(description="增强版基金报告下载器")
+    parser.add_argument(
+        '--once',
+        action='store_true', # 当出现 --once 参数时，其值为 True
+        help='如果提供此参数，将只执行一次批量下载任务，然后退出。'
+    )
+    args = parser.parse_args()
+
+    # 4. 根据是否存在 --once 参数来决定运行哪个函数
+    if args.once:
+        # 如果用户输入了 python your_script.py --once
+        asyncio.run(run_single_download())
+    else:
+        # 如果用户只输入 python your_script.py
+        asyncio.run(main_interactive())

@@ -1,5 +1,28 @@
 """Parsers package initialization."""
 
-from .xbrl_parser import XBRLParser
+# 新的解析器系统
+from .parser_facade import XBRLParserFacade
+from .base_parser import BaseParser, ParseResult, ParserType
+from .format_detector import FormatDetector, DocumentFormat
 
-__all__ = ["XBRLParser"]
+# 尝试导入具体的解析器实现
+try:
+    from .optimized_html_parser import OptimizedHTMLParser
+except ImportError:
+    OptimizedHTMLParser = None
+
+try:
+    from .arelle_xbrl_parser import ArelleXBRLParser
+except ImportError:
+    ArelleXBRLParser = None
+
+__all__ = [
+    "XBRLParserFacade", 
+    "BaseParser", 
+    "ParseResult", 
+    "ParserType",
+    "FormatDetector", 
+    "DocumentFormat",
+    "OptimizedHTMLParser",
+    "ArelleXBRLParser"
+]

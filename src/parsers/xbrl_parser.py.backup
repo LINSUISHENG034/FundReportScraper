@@ -15,12 +15,14 @@ import chardet
 from src.core.logging import get_logger
 # 最终修复：导入真正的SQLAlchemy ORM模型，而不是使用本地的dataclass
 from src.models.fund_data import FundReport, AssetAllocation, TopHolding, IndustryAllocation
+from src.utils.ai_utils import enhance_basic_info_extraction, enhance_table_extraction
 
 
 class SmartTableParser:
     """智能表格解析器"""
 
     def __init__(self):
+        self.logger = get_logger("smart_table_parser")
         # 增强的表头关键词映射
         self.header_mappings = {
             # 资产配置表头
@@ -54,21 +56,47 @@ class SmartTableParser:
         }
 
     def identify_table_type(self, table: Tag) -> Optional[str]:
-        """优化的表格类型识别"""
+        """优化的表格类型识别 - 增强版本，包含更复杂的评分算法和调试日志"""
         table_text = table.get_text().lower()
         exclude_keywords = ["关联方", "交易", "费用", "审计", "托管", "会计", "声明", "签字", "附注"]
-        if any(keyword in table_text for keyword in exclude_keywords) or len(table.find_all("tr")) < 3:
-            return None
-
-        scores = {
-            table_type: sum(3 for kw in keywords["primary"] if kw in table_text) + sum(1 for kw in keywords["secondary"] if kw in table_text)
-            for table_type, keywords in self.table_keywords.items()
-        }
         
-        if scores:
+        # 计算排除关键词的负面权重
+        exclude_penalty = sum(2 for keyword in exclude_keywords if keyword in table_text)
+        
+        # 检查表格基本结构
+        rows = table.find_all("tr")
+        if len(rows) < 3:
+            return None
+            
+        # 检查是否有数值数据（提高表格识别准确性）
+        has_numerical_data = bool(re.search(r'\d+[.,]\d+', table_text))
+        numerical_bonus = 2 if has_numerical_data else 0
+        
+        # 计算每种表格类型的得分
+        scores = {}
+        for table_type, keywords in self.table_keywords.items():
+            primary_score = sum(3 for kw in keywords["primary"] if kw in table_text)
+            secondary_score = sum(1 for kw in keywords["secondary"] if kw in table_text)
+            
+            # 总得分 = 主要关键词得分 + 次要关键词得分 + 数值数据奖励 - 排除关键词惩罚
+            total_score = primary_score + secondary_score + numerical_bonus - exclude_penalty
+            scores[table_type] = max(0, total_score)  # 确保得分不为负数
+        
+        # 记录调试信息
+        if any(score > 0 for score in scores.values()):
             best_type = max(scores, key=scores.get)
+            self.logger.debug("table_identification", 
+                            table_rows=len(rows),
+                            has_numerical=has_numerical_data,
+                            exclude_penalty=exclude_penalty,
+                            scores=scores,
+                            best_guess=best_type,
+                            best_score=scores[best_type])
+            
+            # 只有当最佳得分达到阈值时才返回类型
             if scores[best_type] >= 3:
                 return best_type
+        
         return None
 
     def parse_table_headers(self, table: Tag) -> Dict[str, int]:
@@ -236,23 +264,24 @@ class XBRLParser:
         """
         通过标签文本查找对应的值。
         这是一个更健壮的方法，它利用HTML结构而不是全局regex。
+        增强版本包含更多导航策略和模式匹配。
         """
         for pattern in label_patterns:
             try:
                 # 查找包含标签文本的元素。使用 text=... 比 get_text() 更精确
-                label_tag = soup.find(text=re.compile(pattern))
+                label_tag = soup.find(text=re.compile(pattern, re.IGNORECASE))
                 if label_tag:
-                    # self.logger.info(f"Found label for '{pattern}' in tag: {label_tag.parent.name}")
+                    self.logger.debug(f"Found label for '{pattern}' in tag: {label_tag.parent.name}")
                     
                     # 策略1：值在同一个标签内，但在标签文本之后
                     # 例如: <td>基金代码 001234</td>
-                    match = re.search(f"{pattern}\\s*[:：]?\\s*([\\w.-]+)", label_tag)
+                    match = re.search(f"{pattern}\\s*[:：]?\\s*([\\w.-]+)", label_tag, re.IGNORECASE)
                     if match and len(match.group(1)) > 2:
                         return match.group(1)
 
                     # 策略2：值在父节点的文本中
                     parent_text = label_tag.parent.get_text(strip=True)
-                    match = re.search(f"{pattern}\\s*[:：]?\\s*([\\w.-]+)", parent_text)
+                    match = re.search(f"{pattern}\\s*[:：]?\\s*([\\w.-]+)", parent_text, re.IGNORECASE)
                     if match and len(match.group(1)) > 2:
                         return match.group(1)
 
@@ -275,6 +304,37 @@ class XBRLParser:
                             value_cell = label_cell.find_next_sibling('td')
                             if value_cell and value_cell.get_text(strip=True):
                                 return value_cell.get_text(strip=True)
+                    
+                    # 策略6: 值在包含标签的div的下一个div中
+                    div_parent = label_tag.find_parent('div')
+                    if div_parent:
+                        next_div = div_parent.find_next_sibling('div')
+                        if next_div and next_div.get_text(strip=True):
+                            return next_div.get_text(strip=True)
+                    
+                    # 策略7: 值在同一个段落(p)的后续文本中
+                    p_parent = label_tag.find_parent('p')
+                    if p_parent:
+                        p_text = p_parent.get_text(strip=True)
+                        match = re.search(f"{pattern}\\s*[:：]?\\s*([\\w.-]+)", p_text, re.IGNORECASE)
+                        if match and len(match.group(1)) > 2:
+                            return match.group(1)
+                    
+                    # 策略8: 值在标签后的任何文本节点中（更宽泛的搜索）
+                    next_text = label_tag.find_next(text=True)
+                    if next_text and next_text.strip():
+                        # 尝试从下一个文本节点中提取数值
+                        text_content = next_text.strip()
+                        if re.match(r'^[\d.,]+$', text_content):
+                            return text_content$', text_content):
+                            return text_content$', text_content):
+                            return text_content$', text_content):
+                            return text_content$', text_content):
+                            return text_content$', text_content):
+                            return text_content$', text_content):
+                            return text_content$', text_content):
+                            return text_content$', text_content):
+                            return text_content
 
             except Exception as e:
                 self.logger.debug(f"Error finding value for pattern '{pattern}': {e}")
@@ -282,8 +342,8 @@ class XBRLParser:
         return None
 
     def _parse_basic_info(self, soup: BeautifulSoup, report: FundReport):
-        """解析基本信息并填充到FundReport对象（使用结构化查找）"""
-        # 使用更可靠的结构化查找方法
+        """解析基本信息并填充到FundReport对象（使用结构化查找 + AI增强）"""
+        # Stage 1: 使用更可靠的结构化查找方法
         report.fund_code = self._find_value_by_label(soup, [r"基金主代码", r"基金代码"])
         report.fund_name = self._find_value_by_label(soup, [r"基金名称", r"基金简称"])
         
@@ -306,8 +366,35 @@ class XBRLParser:
                 except InvalidOperation:
                     self.logger.warning(f"Could not parse total_net_assets from '{total_assets_str}'")
 
+        # Stage 2: AI-Enhanced Extraction for missing fields
+        try:
+            ai_results = enhance_basic_info_extraction(soup, report)
+            if ai_results:
+                # Apply AI results for missing fields only
+                if not report.fund_code and ai_results.get('fund_code'):
+                    report.fund_code = ai_results['fund_code']
+                
+                if not report.fund_name and ai_results.get('fund_name'):
+                    report.fund_name = ai_results['fund_name']
+                
+                if not report.net_asset_value and ai_results.get('net_asset_value'):
+                    try:
+                        report.net_asset_value = Decimal(str(ai_results['net_asset_value']))
+                    except (InvalidOperation, TypeError, ValueError):
+                        self.logger.warning("AI returned invalid net_asset_value", value=ai_results['net_asset_value'])
+                
+                if not report.total_net_assets and ai_results.get('total_net_assets'):
+                    try:
+                        report.total_net_assets = Decimal(str(ai_results['total_net_assets']))
+                    except (InvalidOperation, TypeError, ValueError):
+                        self.logger.warning("AI returned invalid total_net_assets", value=ai_results['total_net_assets'])
+        
+        except Exception as e:
+            self.logger.warning("AI basic info extraction failed", error=str(e))
+
     def _parse_tables(self, soup: BeautifulSoup, report: FundReport):
-        """解析所有表格并填充到FundReport对象"""
+        """解析所有表格并填充到FundReport对象（使用规则解析 + AI增强）"""
+        # Stage 1: Rule-based table parsing
         tables = soup.find_all("table")
         for table in tables:
             table_type = self.table_parser.identify_table_type(table)
@@ -317,3 +404,55 @@ class XBRLParser:
                 report.top_holdings = self.table_parser.parse_top_holdings_table(table)
             elif table_type == "industry_allocation":
                 report.industry_allocations = self.table_parser.parse_industry_allocation_table(table)
+
+        # Stage 2: AI-Enhanced table extraction for missing data
+        try:
+            # Check if asset allocation data is missing or insufficient
+            if not report.asset_allocations or len(report.asset_allocations) == 0:
+                ai_results = enhance_table_extraction(soup, "asset_allocation")
+                if ai_results.get("asset_allocations"):
+                    report.asset_allocations = []
+                    for item in ai_results["asset_allocations"]:
+                        if item.get("asset_type"):
+                            allocation = AssetAllocation(
+                                asset_type=item["asset_type"],
+                                asset_name=item["asset_type"],
+                                market_value=Decimal(str(item["market_value"])) if item.get("market_value") else None,
+                                percentage=Decimal(str(item["percentage"])) if item.get("percentage") else None
+                            )
+                            report.asset_allocations.append(allocation)
+
+            # Check if top holdings data is missing or insufficient
+            if not report.top_holdings or len(report.top_holdings) == 0:
+                ai_results = enhance_table_extraction(soup, "top_holdings")
+                if ai_results.get("top_holdings"):
+                    report.top_holdings = []
+                    for i, item in enumerate(ai_results["top_holdings"][:10], 1):  # Limit to top 10
+                        if item.get("security_name"):
+                            holding = TopHolding(
+                                holding_type="股票",
+                                security_code=item.get("security_code"),
+                                security_name=item["security_name"],
+                                shares=Decimal(str(item["shares"])) if item.get("shares") else None,
+                                market_value=Decimal(str(item["market_value"])) if item.get("market_value") else None,
+                                percentage=Decimal(str(item["percentage"])) if item.get("percentage") else None,
+                                rank=item.get("rank", i)
+                            )
+                            report.top_holdings.append(holding)
+
+            # Check if industry allocation data is missing or insufficient
+            if not report.industry_allocations or len(report.industry_allocations) == 0:
+                ai_results = enhance_table_extraction(soup, "industry_allocation")
+                if ai_results.get("industry_allocations"):
+                    report.industry_allocations = []
+                    for item in ai_results["industry_allocations"]:
+                        if item.get("industry_name"):
+                            allocation = IndustryAllocation(
+                                industry_name=item["industry_name"],
+                                market_value=Decimal(str(item["market_value"])) if item.get("market_value") else None,
+                                percentage=Decimal(str(item["percentage"])) if item.get("percentage") else None
+                            )
+                            report.industry_allocations.append(allocation)
+
+        except Exception as e:
+            self.logger.warning("AI table extraction failed", error=str(e))
