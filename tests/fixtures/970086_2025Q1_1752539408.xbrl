@@ -1,0 +1,3208 @@
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<title>XBRL</title>
+<link rel="stylesheet" type="text/css" href="../../../resource/instance_detail.css"/>
+<link rel="stylesheet" type="text/css" href="../../../resource/tab.css"/>
+<link rel="stylesheet" type="text/css" href="../../../resource/jquery.css"/>
+<link rel="stylesheet" type="text/css" href="../../../resource/font-cover.css"/>
+<script language="javascript" type="text/javascript" src="../../../resource/jquery.js"></script>
+<script language="javascript" type="text/javascript" src="../../../resource/jquery_004.js"></script>
+<script language="javascript" type="text/javascript" src="../../../resource/jquery_002.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../resource/black-treeview.css"/>
+<script language="javascript" type="text/javascript" src="../../../resource/jquery_003.js"></script>
+<script language="javascript" type="text/javascript" src="../../../resource/window_src.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../resource/office.css"/>
+<style type="text/css">
+
+</style></head>
+
+<body onresize="resize()" onload="resize()" >
+<div id="banner">
+    <table align="center" border="0" cellpadding="0" cellspacing="0" width="95%">
+        <tbody><tr>
+        <td style="background:url(../../../resource/images/disclose/top_bj.gif);">           
+           <p style="background-color:#004B7D;padding-top:12px;text-align:center;font-size:18px;font-weight:bold;color:#fff">
+              华安证券合赢三个月持有期债券型集合资产管理计划2025年第1季度报告<br/>
+               </p><p style="background-color:#004B7D;padding-top:12px;text-align:center;font-size:14px;font-weight:bold;color:#fff">2025-03-31</p>
+               <p style="background-color:#004B7D;padding-top:12px;text-align:center;font-size:14px;font-weight:bold;color:#fff">基金管理人：华安证券资产管理有限公司</p>
+               <p style="background-color:#004B7D;padding-top:12px;text-align:center;font-size:14px;font-weight:bold;color:#fff">基金托管人：中国光大银行股份有限公司</p>
+               <p style="background-color:#004B7D;padding-top:12px;text-align:center;font-size:14px;font-weight:bold;color:#fff">报告送出日期：2025-04-22</p>
+           <p></p>          
+        </td>
+        </tr>     
+    </tbody></table>
+</div>
+<!-- 主体内容开始 -->
+
+<table align="center" border="0" cellpadding="0" cellspacing="0" width="95%">
+    <tbody><tr>
+        <td style="width:200px;" class="content_box" id="showTd" valign="top">
+ <div id="showTree" style="position: absolute; left: 40px; width: 200px;">
+      <div id="showContent">
+          <table align="right" border="0" cellpadding="0" cellspacing="0" width="95%"><tbody>
+              <tr>
+                 <td height="100" valign="top">
+                     <table align="left" border="0" cellpadding="0" cellspacing="0" width="97%"><tbody>
+                    <tr>
+                          <td colspan="2" class="title_bg">
+                         	<table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                    </table>
+                           </td>
+                     </tr>
+                         <tr>
+                          <td class="list13">&nbsp;</td>
+                          <td class="list13" valign="top">
+<div style="height: 564px; overflow: auto;" id="instance_navigation">
+<div id="treecontrol">
+    <a href="#">目录全部展开</a>
+    <a href="#">目录全部收拢</a>	
+    <a href="#"></a>
+</div>
+<ul class="treeview" id="black">
+    <li>
+        <a href="#tabItem1__importMessage" id="importMessage">重要提示</a>
+    </li>
+    <li class="collapsable"><div class="hitarea"></div>
+        <span id="tabItem1_1" style="cursor:pointer">基金产品概况</span>  
+        <ul> 
+            <li class="last"><a href="#tabItem1_fundIntro" id="fundIntro">基金基本情况</a></li> 
+       	</ul> 
+    
+    </li>
+    <li class="collapsable"><div class="hitarea"></div>
+        <span id="tabItem2_2">主要财务指标和基金净值表现</span>
+        <ul>
+            <li><a href="#tabItem2_mainFinanceItem" id="mainFinanceItem">主要财务指标</a></li>  
+            <li class="collapsable"><div class="hitarea"></div>
+                <span id="tabItem2_fundNetValue">基金净值表现</span>
+                <ul>
+                    <li class="last"><a href="#tabItem2_fundNetValue_BJ" id="fundNetValue">基金份额净值增长率及其与同期业绩比较基准收益率的比较</a></li>  
+                    <li class="last"><a href="#tabItem2_fundNetValueGraph" id="fundNetValueGraph">
+							自基金合同生效以来基金累计净值增长率变动及其与同期业绩比较基准收益率变动的比较
+						</a></li>  
+                </ul>
+            </li> 
+            <li class="last"><a href="#tabItem2_otherIndex" id="otherIndex">其他指标</a></li>  
+        </ul>
+    </li>
+    <li class="collapsable"><div class="hitarea"></div>
+        <span id="tabItem3_3">管理人报告</span>
+        <ul>
+            <li><a href="#tabItem3_fundManagerIntroduction" id="fundManagerIntroduction">基金经理（或基金经理小组）简介</a></li>
+				<li><a href="#tabItem3_fundManagerIntroduction01" id="fundManagerIntroduction01">期末兼任私募资产管理计划投资经理的基金经理同时管理的产品情况</a></li>
+            <li><a href="#tabItem3_regulateAndFaith" id="regulateAndFaith">管理人对报告期内本基金运作遵规守信情况的说明</a></li>
+            <li class="collapsable"><div class="hitarea"></div>
+                <span id="tabItem3_gongPingJiaoYiZhiDuZhiXingQingKuan_D">公平交易专项说明</span>
+                <ul>
+	                <li><a href="#tabItem3_gongPingJiaoYiZhiDuZhiXingQingKuan" id="gongPingJiaoYiZhiDuZhiXingQingKuan">公平交易制度的执行情况</a></li>  
+	               
+	                <li class="last"><a href="#tabItem3_yiChangJiaoYiXingWeiZhuanXiangShuoMing" id="yiChangJiaoYiXingWeiZhuanXiangShuoMing">异常交易行为的专项说明</a></li> 
+                </ul>
+            </li> 
+          	
+           <li class="collapsable"><div class="hitarea"></div>
+		        <span id="tabItem3_3_2"> 报告期内基金的投资策略和业绩表现说明</span>
+		        <ul>
+						 <li><a href="#tabItem3_outstandingAchievement" id="outstandingAchievement">报告期内基金的投资策略和运作分析</a></li>
+						 <li><a href="#tabItem3_workAnalyse" id="workAnalyse">报告期内基金的业绩表现</a></li>
+		        </ul>
+		    </li>
+			
+            
+			<li class="last"><a href="#tabItem3_warnState" id="warnState">报告期内管理人对本基金持有人数或基金资产净值预警情形的说明</a></li>
+            
+        </ul>
+    </li>
+
+   
+ 
+		 <li class="collapsable"><div class="hitarea"></div>
+        <span id="tabItem4_4">投资组合报告</span>
+		
+			<ul>                                                     
+            <li><a href="#tabItem4_assetsCircs" id="assetsCircs">报告期末基金资产组合情况</a></li>
+					 <li><a href="#tabItem4_byTradeStockDetal" id="byTradeStockDetal">报告期末按行业分类的股票投资组合</a></li>  
+	
+
+				
+					 <li><a href="#tabItem4_topTenStockDetal" id="topTenStockDetal">报告期末按公允价值占基金资产净值比例大小排序的前十名股票投资明细</a></li>  
+           
+           
+            <li><a href="#tabItem4_bondCombination" id="bondCombination">报告期末按债券品种分类的债券投资组合</a></li> 
+            <li><a href="#tabItem4_topFiveBondDetail" id="topFiveBondDetail">报告期末按公允价值占基金资产净值比例大小排名的前五名债券投资明细</a></li>  
+			<li><a href="#tabItem7_investAssembledReportZiChanZhiChi" id="investAssembledReportZiChanZhiChi">报告期末按公允价值占基金资产净值比例大小排名的前十名资产支持证券投资明细</a></li>              
+			 <li><a href="#tabItem4_investAssembledReportGuiJinShu" id="investAssembledReportGuiJinShu">报告期末按公允价值占基金资产净值比例大小排名的前五名贵金属投资明细</a></li> 
+            <li><a href="#tabItem4_investAssembledReportQiMoQuanZheng" id="investAssembledReportQiMoQuanZheng">报告期末按公允价值占基金资产净值比例大小排序的前五名权证投资明细</a></li> 
+            <li class="collapsable"><div class="hitarea"></div><span id="tabItem4_baoGaoQiMoBenJiJinTouZiDeGuZhiQiHuoJiaoYiQingKuangShuoMing">报告期末本基金投资的股指期货交易情况说明</span>
+                <ul>
+                <li><a href="#tabItem4_baoGaoQiMoBenJiJinTouZiDeGuZhiQiHuoChiCangHeSunYiMingX" id="baoGaoQiMoBenJiJinTouZiDeGuZhiQiHuoChiCangHeSunYiMingX">报告期末本基金投资的股指期货持仓和损益明细</a></li> 
+                <li class="last"><a href="#tabItem4_benJiJinTouZiGuZhiQiHuoDeTouZiZhengCe" id="benJiJinTouZiGuZhiQiHuoDeTouZiZhengCe">本基金投资股指期货的投资政策</a></li> 
+                 </ul>
+             </li>
+              <li class="collapsable"><div class="hitarea"></div><span id="tabItem4_baoGaoQiMoBenJiJinTouZiDeGuoZhaiQiHuoJiaoYiQingKuangShuoMing">报告期末本基金投资的国债期货交易情况说明</span>
+                <ul>
+                <li><a href="#tabItem4_benJiJinTouZiGuoZhaiQiHuoDeTouZiZhengCe" id="benJiJinTouZiGuoZhaiQiHuoDeTouZiZhengCe">本期国债期货投资政策</a></li> 
+                <li><a href="#tabItem4_baoGaoQiMoBenJiJinTouZiDeGuoZhaiQiHuoChiCangHeSunYiMingX" id="baoGaoQiMoBenJiJinTouZiDeGuoZhaiQiHuoChiCangHeSunYiMingX">报告期末本基金投资的国债期货持仓和损益明细</a></li> 
+                 <li class="last"><a href="#tabItem4_benJiJinTouZiGuoZhaiQiHuoDePingJia" id="benJiJinTouZiGuoZhaiQiHuoDePingJia">本期国债期货投资评价</a></li> 
+				   <li class="last"><a href="#tabItem4_benJiJinTouZiGuoZhaiQiHuoDePingJia01" id="benJiJinTouZiGuoZhaiQiHuoDePingJia">市场中性策略执行情况</a></li> 
+                 </ul>
+             </li>
+             
+           
+            <li class="collapsable lastCollapsable"><div class="hitarea"></div>
+                <span id="tabItem4_touZiZuHeBaoGaoFuZhu">投资组合报告附注</span>
+                <ul>
+                    <li><a href="#tabItem4_shenMingShiFouLiAnHuoChuFa" id="shenMingShiFouLiAnHuoChuFa">本基金投资的前十名证券的发行主体本期是否出现被监管部门立案调查，或在报告编制日前一年内受到公开谴责、处罚的情形</a></li>  
+                    <li><a href="#tabItem4_shenMingShiFouChaoChu" id="shenMingShiFouChaoChu">基金投资的前十名股票是否超出基金合同规定的备选股票库</a></li> 
+                    <li><a href="#tabItem4_QTZiChanGC" id="QTZiChanGC">其他资产构成</a></li> 
+                    <li><a href="#tabItem4_investAssembledReportZhaiQuan" id="investAssembledReportZhaiQuan">报告期末持有的处于转股期的可转换债券明细</a></li> 
+                    <li><a href="#tabItem4_investAssembledReportTopTenStock" id="investAssembledReportTopTenStock">报告期末前十名股票中存在流通受限情况的说明</a></li>
+						
+		<li class="last"><a href="#tabItem7_qiTaXuShuoMingDeZhongYaoShiXiang" id="qiTaXuShuoMingDeZhongYaoShiXiang">投资组合报告附注的其他文字描述部分</a></li> 
+                </ul>
+            </li> 
+        </ul>			
+	
+		</li>
+		
+	
+	
+		<li>
+			<span id="tabItem6_6" style="cursor:pointer"><a href="#tabItem6_openTypeFundShareChange" id="openTypeFundShareChange">开放式基金份额变动</a></span>
+		</li>
+    
+			<li class="collapsable"><div class="hitarea"></div>
+		
+			<span id="tabItem10_10" style="cursor:pointer">基金管理人运用固有资金投资本基金情况</span>  
+			<ul> 
+			
+				<li><a href="#tabItem10_fundManagerBankRoll" id="fundManagerBankRoll">基金管理人持有本基金份额变动情况</a></li> 
+			   
+				  <li class="last"><a href="#tabItem10_fundManagerBankRolldetail" id="fundManagerBankRolldetail">基金管理人运用固有资金投资本基金交易明细</a></li> 
+			</ul>
+			</li> 
+
+
+     <li>
+        <span id="tabItem9_9" style="cursor:pointer"><a href="#tabItem9_faQiShiJiJinFaQiZiJinChiYouFenEQingKuang">报告期末发起式基金发起资金持有份额情况</a></span> 
+    </li>
+	
+	<li class="collapsable"><div class="hitarea"></div>
+        <span id="tabItem8_8" style="cursor:pointer">影响投资者决策的其他重要信息</span>
+        <ul>
+			<li><span id="tabItem7_7" style="cursor:pointer"><a href="#tabItem7_danYiTouZiZheChiYouJiJinFenEBiLI">报告期内单一投资者持有基金份额比例达到或超过20%的情况</a></span></li>
+			<li><span id="tabItem7_7" style="cursor:pointer"><a href="#tabItem7_otherMessage">影响投资者决策的其他重要信息</a></span></li>
+		</ul>  
+    </li> 
+    <li class="collapsable"><div class="hitarea"></div>
+        <span id="tabItem8_8" style="cursor:pointer">备查文件目录</span>
+        <ul>
+			<li>
+		        <span id="tabItem8_8" style="cursor:pointer"><a href="#tabItem8_memoCatalog" id="memoCatalog">备查文件目录</a></span> 
+		    </li>
+		    <li>
+		        <span id="tabItem8_1" style="cursor:pointer"><a href="#tabItem8_CFDD" id="CFDD">存放地点</a></span> 
+		    </li>
+		    <li>
+		        <span id="tabItem8_2" style="cursor:pointer"><a href="#tabItem8_CYFS" id="CYFS">查阅方式</a></span> 
+		    </li>    
+	    </ul>  
+    </li>    
+</ul> 
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody></table>
+                    </td>
+                    <td class="shadow_right" width="4">
+                        <img src="../../../resource/space.gif"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="shadow_bottom" height="4">
+                        <img src="../../../resource/space.gif"/>
+                    </td>
+                    <td align="left" height="4" valign="top" width="4">
+                        <img src="../../../resource/Shadow4.gif" height="4" width="4"/>
+                    </td>
+                </tr>
+            </tbody></table>
+            </div>
+             <div id="showButton" style="position:absolute;left:190px;border:#000000" width="40px" align="center">
+               <img src="../../../resource/jiantou_r.jpg" id="showImg1" style="display:none;"/>
+               <img src="../../../resource/jiantou_l.jpg" id="showImg2"/>
+             </div>
+ </div>	        </td>
+        <td class="content_box" valign="top">
+            <table align="center" border="0" cellpadding="0" cellspacing="0" width="95%">
+                <tbody><tr>
+                    <td valign="top">
+    <a name="tabItem1__importMessage"></a>
+    <div style="height: 100%; overflow: visible;" id="tabItem0">					
+    <div class="space_div"></div>   
+        <table align="left" border="0" cellpadding="0" cellspacing="0" width="97%"><tbody>
+            <tr>
+                <td class="Menubox">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%"><tbody>
+                        <tr>
+                            <td style="padding-left:15px;" class="write_text">重要提示</td>
+                        </tr>
+                    </tbody></table>
+                </td>
+            </tr>
+            <tr>
+                <td class="Contentbox">
+					<div id="con_one_1" class="text_area">
+						基金管理人的董事会及董事保证本报告所载资料不存在虚假记载、误导性陈述或重大遗漏，并对其内容的真实性、准确性和完整性承担个别及连带责任。<br/>基金托管人中国光大银行股份有限公司根据本基金合同规定，于2025年04月18日复核了本报告中的财务指标、净值表现和投资组合报告等内容，保证复核内容不存在虚假记载、误导性陈述或者重大遗漏。<br/>基金管理人承诺以诚实信用、勤勉尽责的原则管理和运用基金资产，但不保证基金一定盈利。<br/>基金的过往业绩并不代表其未来表现。投资有风险，投资者在作出投资决策前应仔细阅读本基金的招募说明书。<br/>本报告中财务资料未经审计。<br/>本报告期自2025年01月01日起至2025年03月31日止。									                                  
+					</div>        
+                </td>
+            </tr>
+		</tbody></table>
+    </div>                    
+<div style="height: 35px; overflow: visible;" id="tabItem1">
+	<a name="tabItem1_fundIntro"></a>
+	<div class="space_div"></div>
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+		<tbody>
+			<tr>
+				<td class="Menubox">
+					<table border="0" cellpadding="0" cellspacing="0" width="100%">
+						<tbody>
+							<tr>
+								<td style="padding-left: 15px;" class="write_text">基金产品概况</td>
+							</tr>
+						</tbody>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td class="Menubox">
+					<table border="0" cellpadding="0" cellspacing="0" width="100%">
+						<tbody>
+							<tr>
+								<td style="padding-left: 15px;" class="write_text">基金基本情况</td>
+							</tr>
+						</tbody>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td>
+
+					<div id="con_one_1">
+						<div class="news_height">
+							<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+								<tbody>
+									<tr class="cc" >
+										<td width="30%"><p>项目</p></td>
+										<td  width="70%"><p>数值</p></td>
+									</tr>
+									<tr class="dd">
+										<td align="left" ><p>基金简称</p></td>
+										<td  align="left" ><p>华安证券合赢三个月持有债券</p></td>
+									</tr>
+									<tr class="dd">
+										<td align="left"><p>场内简称</p></td>
+										<td  align="left"><p></p></td>
+									</tr>
+									<tr class="dd">
+										<td align="left"><p>基金主代码</p></td>
+										<td  align="left"><p>970086</p></td>
+									</tr>
+									
+																		
+									<tr class="dd">
+										<td align="left"><p>基金运作方式</p></td>
+										<td  align="left"><p>契约型开放式</p></td>
+									</tr>
+									<tr class="dd">
+										<td align="left"><p>基金合同生效日</p></td>
+										<td  align="left"><p>2021-11-03</p></td>
+									</tr>
+									<tr class="dd">
+										<td align="left"><p>报告期末基金份额总额</p></td>
+										<td  align="right"><p>436,440,581.14</p></td>
+									</tr>
+									<tr class="dd">
+										<td align="left"><p>投资目标</p></td>
+										<td  align="left"><p>在严格控制组合风险并保持良好流动性的前提下，通过专业化研究分析，力争实现集合计划资产的长期稳定增值。</p></td>
+									</tr>
+									<tr class="dd">
+										<td align="left"><p>投资策略</p></td>
+										<td  align="left"><p>本集合计划在严格控制投资风险和保持资产合理流动性的前提下，通过审慎 的投资管理提高固定收益类资产收益，积极运用新股申购等方式增厚产品收益。</p></td>
+									</tr>
+									<tr class="dd">
+										<td align="left"><p>业绩比较基准</p></td>
+										<td  align="left"><p>基准指数＝中债综合全价（总值）指数收益率×80%+沪深300指数收益率×10%+金融机构人民币活期存款基准利率（税后）×10%</p></td>
+									</tr>
+									<tr class="dd">
+										<td align="left"><p>基金管理人</p></td>
+										<td  align="left"><p>华安证券资产管理有限公司</p></td>
+									</tr>
+									<tr class="dd">
+										<td align="left"><p>基金托管人</p></td>
+										<td  align="left"><p>中国光大银行股份有限公司</p></td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<div class="space_div"></div>
+	<div>
+		<table class="text">
+			<tbody>
+				<tr>
+					<td>
+							注：本报告所述的"基金"也包括按照《证券公司大集合资产管理业务适用&lt;关于规范金融机构资产管理业务的指导意见&gt;操作指引》的要求进行变更后的证券公司大集合资产管理产品。 
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+	<div class="space_div"></div>
+</div>
+
+
+
+
+<div style="height: 100%; overflow: visible;" id="tabItem2">
+	<a name="tabItem2_mainFinanceItem"></a>
+<div class="space_div"></div>
+
+<div class="space_div"></div>
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	    <tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">主要财务指标和基金净值表现</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+	        <td class="Menubox">
+	            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+	                <tbody><tr>
+	                    <td style="padding-left:15px;" class="write_text">
+	                                主要财务指标
+	                    </td>
+	                    <td width="30">
+                            <a style="color:#fff; font-weight: bold;" href="javascript:show('/create_main_finance_charts_new.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=B&amp;fundType=6020-6030')"></a>
+                        </td>
+	                </tr>
+	            </tbody></table>
+	        </td>
+	    </tr>
+	    <tr>
+           <td>
+               <p class="dw">单位：人民币元</p>
+		  </td>
+		</tr>
+	    <tr>
+	        <td>
+	            <div id="con_one_1">
+	                <div class="news_height">
+	                    <table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+                   
+                        <tbody><tr class="cc">
+                                <td width="20%"><p>主要财务指标</p></td>
+                                 <td width="30%"><p>报告期（2025-01-01 至 2025-03-31）
+								 </p></td>
+	                               
+                            </tr>
+                            <tr class="dd">
+                                <td align="left"><p>1.本期已实现收益</p></td>
+                                  <td align="right"><p>3,171,546.16</p></td>
+	                           
+                            </tr>
+                            <tr class="dd">
+                                <td align="left"><p>2.本期利润</p></td>
+                                  <td align = "right"><p>663,844.78</p></td>
+	                          
+                            </tr>
+                            <tr class="dd">
+                                <td align="left"><p>3.加权平均基金份额本期利润</p></td>
+                                 <td align="right"><p>0.0013</p></td>
+	                               
+                            </tr>
+                            <tr class="dd">
+                                <td align="left"><p>4.期末基金资产净值</p></td>
+                                 <td align="right"><p>445,283,511.05</p></td>
+	                                
+                            </tr>
+                            <tr class="dd">
+                                <td align="left"><p>5.期末基金份额净值</p></td>
+                                 <td align="right"><p>1.0203</p></td>
+	                              
+                            </tr>
+	                    </tbody></table>
+	                </div>
+	            </div>        
+	        </td>
+	    </tr>
+	</tbody></table>
+	<div class="space_div"></div>   
+	
+	 
+	  <div>
+        <table class="text">
+            <tbody><tr>
+                <td>
+                     注：①所述基金业绩指标不包括持有人认购或交易基金的各项费用，计入费用后实际收益水平要低于所列数字。<br/>②本期已实现收益指基金本期利息收入、投资收益、其他收入（不含公允价值变动收益）扣除相关费用后的余额，本期利润为本期已实现收益加上本期公允价值变动收益。
+                </td>
+            </tr>
+        </tbody></table>
+    </div>
+	  <div>
+        <table class="text">
+            <tbody><tr>
+                <td>
+                    
+                </td>
+            </tr>
+        </tbody></table>
+    </div>
+
+	
+<a name="tabItem2_fundNetValue"></a>
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">基金净值表现</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		
+
+﻿ 
+<a name="tabItem2_fundNetValue_BJ"></a>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">基金份额净值增长率及其与同期业绩比较基准收益率的比较</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="12%"><p>阶段</p></td>
+									<td width="12%"><p>净值增长率①</p></td>
+									<td width="12%"><p>净值增长率标准差②</p></td>
+									<td width="12%"><p>业绩比较基准收益率③</p></td>
+									<td width="12%"><p>业绩比较基准收益率标准差④</p></td>
+									<td width="12%"><p>①-③</p></td>
+									<td width="12%"><p>②-④</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>过去三个月</p></td>
+									<td align="right"><p>
+											
+0.16
+%
+									</p></td>
+									<td align="right"><p>
+												
+0.02
+%
+									</p></td>
+									<td align="right"><p>
+											
+-1.04
+%
+									</p></td>
+									<td align="right"><p>
+										
+0.11
+%
+									</p></td>
+									<td align="right"><p>
+											
+1.20
+
+%
+									</p></td>
+									<td align="right"><p>
+										
+-0.09
+%
+									</p></td>
+									</tr>
+								<tr class="dd">
+									<td align="left"><p>过去六个月</p></td>
+									<td align="right"><p>
+											
+0.93
+%
+									</p></td>
+									<td align="right"><p>
+												
+0.02
+%
+									</p></td>
+									<td align="right"><p>
+											
+0.61
+%
+									</p></td>
+									<td align="right"><p>
+										
+0.15
+%
+									</p></td>
+									<td align="right"><p>
+											
+0.32
+%
+									</p></td>
+									<td align="right"><p>
+										
+-0.13
+%
+									</p></td>
+									</tr>
+								<tr class="dd">
+									<td align="left"><p>过去一年</p></td>
+									<td align="right"><p>
+											
+2.02
+%
+									</p></td>
+									<td align="right"><p>
+												
+0.02
+%
+									</p></td>
+									<td align="right"><p>
+											
+3.08
+%
+									</p></td>
+									<td align="right"><p>
+										
+0.13
+%
+									</p></td>
+									<td align="right"><p>
+											
+-1.06
+%
+									</p></td>
+									<td align="right"><p>
+										
+-0.11
+%
+									</p></td>
+									</tr>
+								<tr class="dd">
+									<td align="left"><p>过去三年</p></td>
+									<td align="right"><p>
+											
+10.91
+%
+									</p></td>
+									<td align="right"><p>
+												
+0.03
+%
+									</p></td>
+									<td align="right"><p>
+											
+4.72
+%
+									</p></td>
+									<td align="right"><p>
+										
+0.11
+%
+									</p></td>
+									<td align="right"><p>
+											
+6.19
+%
+									</p></td>
+									<td align="right"><p>
+										
+-0.08
+%
+									</p></td>
+									</tr>
+								<tr class="dd">
+									<td align="left"><p>自基金合同生效起至今</p></td>
+									<td align="right"><p>
+											
+12.47
+%
+									</p></td>
+									<td align="right"><p>
+												
+0.03
+%
+									</p></td>
+									<td align="right"><p>
+											
+4.04
+%
+									</p></td>
+									<td align="right"><p>
+										
+0.11
+%
+									</p></td>
+									<td align="right"><p>
+											
+8.43
+%
+									</p></td>
+									<td align="right"><p>
+										
+-0.08
+%
+									</p></td>
+									</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+	
+<div class="space_div"></div>
+<div>
+<table class="text">
+	<tbody>
+		<tr>
+			<td>
+			</td>
+		</tr>
+	</tbody>
+</table>
+</div> 
+
+<a name="tabItem2_fundNetValueGraph"></a>
+
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">
+							自基金合同生效以来基金累计净值增长率变动及其与同期业绩比较基准收益率变动的比较
+						</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td class="Contentbox">
+				<div id="con_one_1" class="text_area">
+					<img id="net2" src="CN_13700000_970086_FB030010_20250003_1.jpg" onerror="javascript:this.style.display='none'" />
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+	
+
+	
+
+
+
+
+<a name="tabItem2_otherIndex"></a>
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">其他指标</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+
+<a name="tabItem4_investAssembledReportZiChan"></a>
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>		
+</div>						
+<div id="tabItem3" >
+		
+<div class="space_div"></div>
+<a name="tabItem3_fundManagerIntroduction"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	    <tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">管理人报告</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+	        <td class="Menubox">
+	            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+	                <tbody><tr>
+	                    <td style="padding-left:15px;" class="write_text">
+	                               	基金经理（或基金经理小组）简介
+	                    </td>
+	                </tr>
+	            </tbody></table>
+	        </td>
+	    </tr>
+	    <tr>
+	        <td>
+	            <div id="con_one_1">
+	                <div class="news_height">
+	                    <table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+	                        <tbody><tr class="cc">
+	                            <td rowspan="2" width="7%"><p>姓名</p></td>
+	                            <td rowspan="2" width="10%"><p>职务</p></td>
+	                            <td colspan="2" width="10%"><p>任本基金的基金经理期限</p></td>
+	                            <td rowspan="2" width="10%"><p>证券从业年限</p></td>
+	                            <td rowspan="2" width="20%"><p>说明</p></td>
+	                        </tr>
+	                        <tr class="cc">
+	                            <td><p>任职日期</p></td>
+	                            <td><p>离任日期</p></td>
+	                        </tr>
+
+								                    	<tr class="dd">
+	              				<td align="left">
+	              					<p>樊艳</p>
+	              				</td>
+                                <td align="left">
+                                	<p>基金经理</p>
+                                </td>
+                                <td align="left">
+                                	<p>2021-11-03</p>
+                                </td>
+                                <td align="left">
+                               		<p>	-</p>
+                               	</td>
+                                <td align="left">
+                                	<p>21年</p>
+                                </td>
+                                <td align="left">
+                                	<p>1999年加入华安证券，曾任证券投资部研究员、投资经理，现任资产管理总部投资经理，担任华安证券汇赢增利一年持有期灵活配置混合型集合资产管理计划、华安证券聚赢一年持有期债券型集合资产管理计划、华安证券合赢六个月持有期债券型集合资产管理计划、华安证券合赢三个月持有期债券型集合资产管理计划、华安证券月月红现金管理型集合资产管理计划投资经理。</p>
+                                </td>
+	                        </tr>
+	                    	<tr class="dd">
+	              				<td align="left">
+	              					<p>刘杰</p>
+	              				</td>
+                                <td align="left">
+                                	<p>基金经理</p>
+                                </td>
+                                <td align="left">
+                                	<p>2021-11-03</p>
+                                </td>
+                                <td align="left">
+                               		<p>	-</p>
+                               	</td>
+                                <td align="left">
+                                	<p>15年</p>
+                                </td>
+                                <td align="left">
+                                	<p>硕士研究生，具有基金从业资格。曾任职于招商证券研究所、海富通基金投资部、华泰证券资管权益投资部。2017年加入华安证券，现担任华安证券合赢添利、华安证券合赢三个月持有、华安证券睿赢一年持有、华安证券汇赢增利一年持有的投资经理。</p>
+                                </td>
+	                        </tr>
+	                    </tbody></table>
+	                </div>
+	            </div>        
+	        </td>
+	    </tr>
+	</tbody></table>
+   	<a name="tabItem3_fundManagerIntroduction01"></a>
+	    <div class="space_div"></div>
+    <table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+        <tbody><tr>
+            <td class="Menubox_level3">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tbody><tr>
+                        <td style="padding-left:15px;" class="write_text_level3">     
+								期末兼任私募资产管理计划投资经理的基金经理同时管理的产品情况
+                        </td>
+                    </tr>
+                </tbody></table>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div id="con_one_1">
+                    <div class="news_height">
+                        <table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+                            <tbody>
+							<tr class="cc">
+                                <td width="20%"><p>姓名</p></td>
+                                <td width="20%"><p>产品类型</p></td>
+                                <td width="20%"><p>产品数量（只）</p></td>
+                                <td width="20%"><p>资产净值(元)</p></td>
+                                <td width="20%"><p>任职时间</p></td>
+                            </tr>
+                        </tbody></table>
+                    </div>
+                </div>        
+            </td>
+        </tr>
+    </tbody></table>
+    
+    <div class="space_div"></div>   
+    <div>
+        <table class="text">
+            <tbody><tr>
+                <td>
+                </td>
+            </tr>
+        </tbody></table>
+    </div> 
+
+     	
+	
+<a name="tabItem3_regulateAndFaith"></a>
+<div class="space_div"></div>   
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	    <tbody><tr>
+	        <td class="Menubox">
+	            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+	                <tbody><tr>
+	                			                    <td style="padding-left:15px;" class="write_text">
+		                        	      管理人对报告期内本基金运作遵规守信情况的说明
+		                    </td>
+	                </tr>
+	            </tbody></table>
+	        </td>
+	    </tr>
+	    <tr>
+	        <td class="Contentbox">
+	            <div id="con_one_1" class="text_area">	               
+					本报告期内，本基金管理人严格按照《中华人民共和国证券投资基金法》《证券公司大集合资产管理业务适用关于规范金融机构资产管理业务的指导意见操作指引》等有关法律法规及基金合同、招募说明书等有关基金法律文件的规定，依照诚实信用、勤勉尽责的原则管理和运用基金资产，在控制风险的基础上，为基金份额持有人谋求最大利益，无损害基金份额持有人利益的行为。
+	            </div>        
+	        </td>
+	    </tr>
+	</tbody></table>
+	
+	
+	<div class="space_div"></div>
+    <table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+        <tbody><tr>
+            <td class="Menubox">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tbody><tr>
+                        <td style="padding-left:15px;" class="write_text">
+                              	 公平交易专项说明
+                        </td>
+                    </tr>
+                </tbody></table>
+            </td>
+        </tr>
+    </tbody></table>   
+	    <a name="tabItem3_gongPingJiaoYiZhiDuZhiXingQingKuan"></a>
+	<div class="space_div"></div>   
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	    <tbody><tr>
+	        <td class="Menubox_level3">
+	            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+	                <tbody><tr>
+	                    <td style="padding-left:15px;" class="write_text_level3">
+	                    	           公平交易制度的执行情况
+	                    </td>
+	                </tr>
+	            </tbody></table>
+	        </td>
+	    </tr>
+	    <tr>
+	        <td class="Contentbox">
+	            <div id="con_one_1" class="text_area">
+	            	本基金管理人一贯公平对待旗下管理的所有基金和组合， 制定并严格遵守相应的制度和流程，通过系统和人工等方式在各环节严格控制交易公平执行。报告期内，本公司严格执行了《证券投资基金管理公司公平交易制度指导意见》和《华安证券资产管理有限公司资产管理业务公平交易实施细则》、《华安证券资产管理有限公司资产管理业务异常交易监控实施细则》的规定。
+	            </div>        
+	        </td>
+	    </tr>
+	</tbody></table>
+
+	<a name="tabItem3_yiChangJiaoYiXingWeiZhuanXiangShuoMing"></a>
+	<div class="space_div"></div>   
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	    <tbody><tr>
+	        <td class="Menubox_level3">
+	            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+	                <tbody><tr>
+	                    <td style="padding-left:15px;" class="write_text_level3">
+	                              	 异常交易行为的专项说明
+	                    </td>
+	                </tr>
+	            </tbody></table>
+	        </td>
+	    </tr>
+	    <tr>
+	        <td class="Contentbox">
+	            <div id="con_one_1" class="text_area">
+	            	报告期内未发现本基金存在异常交易行为。
+	            </div>        
+	        </td>
+	    </tr>
+	</tbody></table>
+	
+
+
+	<a name="tabItem3_outstandingAchievement"></a>
+    <div class="space_div"></div>   
+    <table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+        <tbody><tr>
+            <td class="Menubox">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tbody><tr>
+                        <td style="padding-left:15px;" class="write_text">
+                        	报告期内基金的投资策略和运作分析
+                        </td>
+                    </tr>
+                </tbody></table>
+            </td>
+        </tr>
+        <tr>
+            <td class="Contentbox">
+                <div id="con_one_1" class="text_area">
+					一季度国内经济延续了去年四季度以来的回升态势，总体平稳向好，部分经济指标超出市场预期，为全年经济增长目标的实现奠定了坚实基础。财政支出靠前发力，政策效应显现，规模以上工业增加值、社会消费品零售总额、全国固定资产投资增速均较去年加快。新质生产力蓬勃发展，先进制造业成为主要增长动力；在以旧换新政策推动下，家具家电消费增速明显；电影、冰雪旅游带动了服务业增长。尽管外部贸易环境不确定性增加，但出口仍保持了韧性。<br/>一季度央行暂停开展公开市场国债买入操作，并适度收紧流动性投放，债券市场进行了一轮较大幅度的调整，去年底债券收益率过度下行的定价偏差得到纠正，季末债市整体企稳，收益率小幅下行。A股市场先抑后扬，春节后进入以科技为主线的结构性牛市，各主要指数涨跌不一，在管理层政策呵护下，各类增量资金入市，成交量显著放大；3月下旬市场进入调整期，板块轮动、成交量缩减。<br/>报告期内，本基金遵循稳健经营原则，根据市场情况调整资产结构，努力实现净值稳定增长。债券组合以中高等级信用债为主，适度控制债券持仓比例，组合久期较短。
+                </div>        
+            </td>
+        </tr>
+    </tbody></table>
+    <div class="space_div"></div>
+
+	<a name="tabItem3_workAnalyse"></a>
+    <div class="space_div"></div>   
+    <table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+        <tbody><tr>
+            <td class="Menubox">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tbody><tr>
+                        <td style="padding-left:15px;" class="write_text">
+                        	报告期内基金的业绩表现
+                        </td>
+                    </tr>
+                </tbody></table>
+            </td>
+        </tr>
+        <tr>
+            <td class="Contentbox">
+                <div id="con_one_1" class="text_area">
+                	截至报告期末华安证券合赢三个月持有债券基金份额净值为1.0203元，本报告期内，基金份额净值增长率为0.16%，同期业绩比较基准收益率为-1.04%。
+                </div>        
+            </td>
+        </tr>
+    </tbody></table>
+    <div class="space_div"></div>
+  
+        
+    
+    <a name="tabItem3_warnState"></a>
+    <div class="space_div"></div>  
+       <table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	    <tbody><tr>
+	        <td class="Menubox">
+	            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+	                <tbody><tr>
+	                    <td style="padding-left:15px;" class="write_text">
+	                       	        报告期内基金持有人数或基金资产净值预警说明
+	                    </td>
+	                </tr>
+	            </tbody></table>
+	        </td>
+	    </tr>
+	    <tr>
+            <td class="Contentbox">
+                <div id="con_one_1" class="text_area">
+                  报告期内，本基金未出现连续二十个工作日基金份额持有人数量不满二百人或者基金资产净值低于五千万元的情形。
+                </div>        
+            </td>
+        </tr>
+   
+	</tbody></table>
+    <div class="space_div"></div></div>
+<div id="tabItem4" >
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">投资组合报告</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+	<div class="space_div"></div>
+<a name="tabItem4_assetsCircs"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">报告期末基金资产组合情况</td>
+							<td width="30"><a style="color: #fff; font-weight: bold;"
+								href="javascript:show('/create_assets_circs_charts.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=B')"></a>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<p class="dw"></p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="5%"><p>序号</p></td>
+									<td width="25%"><p>项目</p></td>
+									<td width="20%"><p>金额（元）</p></td>
+									<td width="20%"><p>占基金总资产的比例（％）</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>1</p></td>
+									<td align="left"><p>权益类投资</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p></p></td>
+									<td align="left"><p>其中：股票</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								
+								
+								
+								
+								
+								
+								
+							   
+									<tr class="dd">
+										<td align="center"><p>2</p></td>
+										<td align="left"><p>固定收益投资</p></td>
+										<td align="right"><p>417,470,301.92</p></td>
+										
+											<td align="right"><p>
+92.88
+</p></td>
+										
+									</tr>
+									<tr class="dd">
+									<td align="center"><p></p></td>
+									<td align="left"><p>其中：债券</p></td>
+									<td align="right"><p>417,470,301.92</p></td>
+									<td align="right"><p>
+92.88
+</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p></p></td>
+									<td align="left"><p>&nbsp;&nbsp;&nbsp;资产支持证券</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>3</p></td>
+									<td align="left"><p>贵金属投资</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>4</p></td>
+									<td align="left"><p>金融衍生品投资</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>5</p></td>
+									<td align="left"><p>买入返售金融资产</p></td>
+									<td align="right"><p>20,007,353.23</p></td>
+									<td align="right"><p>
+4.45
+</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p></p></td>
+									<td align="left"><p>其中：买断式回购的买入返售金融资产</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>6</p></td>
+									<td align="left"><p>银行存款和结算备付金合计</p></td>
+									<td align="right"><p>9,007,430.48</p></td>
+									<td align="right"><p>
+2.00
+
+</p></td>
+								</tr>
+								
+
+								<tr class="dd">
+									<td align="center"><p>7</p></td>
+									<td align="left"><p>其他资产</p></td>
+									<td align="right"><p>2,993,489.30</p></td>
+									<td align="right"><p>
+0.67
+</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>8</p></td>
+									<td align="left"><p>合计</p></td>
+									<td align="right"><p>449,478,574.93</p></td>
+									<td align="right"><p>
+100.00
+
+</p></td>
+								</tr>
+								
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+	
+<div class="space_div"></div>
+<a name="tabItem4_byTradeStockDetal"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">报告期末按行业分类的股票投资组合</td>
+							<td width="30"><a style="color: #fff; font-weight: bold;"
+								href="javascript:show('/create_by_trade_stock_detal_new.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=common&amp;type2=B')"></a>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		
+		<tr>
+	        <td  class="Menubox_level3" >
+	            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+	                <tr>
+	                    <td style="padding-left:15px;" class="write_text_level3">
+	                          	   报告期末按行业分类的境内股票投资组合
+	                    </td>
+	                    <td width="30">
+                        </td>
+	                </tr>
+	            </table>
+	        </td>
+	    </tr>
+		<tr>
+			<td>
+				<p class="dw"></p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="5%"><p>序号</p></td>
+									<td width="30%"><p>行业类别</p></td>
+									<td width="20%"><p>公允价值（元）</p></td>
+									<td width="20%"><p>占基金资产净值比例（％）</p></td>
+								</tr>
+
+
+								<tr class="dd">
+									<td align="center"><p>A</p></td>
+									<td align="left"><p>农、林、牧、渔业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>B</p></td>
+									<td align="left"><p>采矿业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>C</p></td>
+									<td align="left"><p>制造业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>D</p></td>
+									<td align="left"><p>电力、热力、燃气及水生产和供应业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>E</p></td>
+									<td align="left"><p>建筑业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>F</p></td>
+									<td align="left"><p>批发和零售业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>G</p></td>
+									<td align="left"><p>交通运输、仓储和邮政业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>H</p></td>
+									<td align="left"><p>住宿和餐饮业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>I</p></td>
+									<td align="left"><p>信息传输、软件和信息技术服务业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>J</p></td>
+									<td align="left"><p>金融业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>K</p></td>
+									<td align="left"><p>房地产业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>L</p></td>
+									<td align="left"><p>租赁和商务服务业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>M</p></td>
+									<td align="left"><p>科学研究和技术服务业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>N</p></td>
+									<td align="left"><p>水利、环境和公共设施管理业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>O</p></td>
+									<td align="left"><p>居民服务、修理和其他服务业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>P</p></td>
+									<td align="left"><p>教育</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>Q</p></td>
+									<td align="left"><p>卫生和社会工作</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>R</p></td>
+									<td align="left"><p>文化、体育和娱乐业</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>S</p></td>
+									<td align="left"><p>综合</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p></p></td>
+									<td align="left"><p>合计</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<div class="space_div"></div>
+<a name="tabItem4_BGQMHGTTZGPTZZH"></a>
+<table width="97%" border="0" align="left" cellpadding="0" cellspacing="0">
+
+	<tr>
+		<td class="Menubox_level3">
+			<table width="100%" border="0" cellspacing="0" cellpadding="0">
+				<tr>
+					<td style="padding-left: 15px;" class="write_text_level3">报告期末按行业分类的港股通投资股票投资组合</td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<p class="dw"></p>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<div id="con_one_1">
+				<div class="news_height">
+					<table width="100%" border="0" cellpadding="0" cellspacing="1" class="bb">
+					<tbody>
+						<tr class="cc">
+
+							<td width="30%"><p>行业类别</p></td>
+							<td width="20%"><p>公允价值（元）</p></td>
+							<td width="20%"><p>占基金资产净值比例（％）</p></td>
+						</tr>
+												
+                      </tbody>
+					</table>
+				</div>
+			</div>
+		</td>
+	</tr>
+</table>
+<div class="space_div"></div>
+<div>
+	<table class="text">
+	<tbody>
+		<tr>
+			<td>
+			</td>
+		</tr>
+		</tbody>
+	</table>
+</div>
+	
+	<div class="space_div"></div>
+		<a name="tabItem4_topTenStockDetal"></a>
+		<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+			<tbody>
+				<tr>
+					<td class="Menubox">
+						<table border="0" cellpadding="0" cellspacing="0" width="100%">
+							<tbody>
+								<tr>
+									<td style="padding-left: 15px;" class="write_text">期末按公允价值占基金资产净值比例大小排序的股票投资明细</td>
+									<td width="30"><a style="color: #fff; font-weight: bold;" href="javascript:show('/create_topten_stock_detal.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=common')"></a></td>
+								</tr>
+							</tbody>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td class="Menubox_level3">
+						<table border="0" cellpadding="0" cellspacing="0" width="100%">
+							<tbody>
+								<tr>
+									<td style="padding-left: 15px;" class="write_text_level3">报告期末按公允价值占基金资产净值比例大小排序的前十名股票投资明细</td>
+									<td width="30"><a style="color: #fff; font-weight: bold;" href="javascript:show('/create_topten_stock_detal.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=common')"></a></td>
+								</tr>
+							</tbody>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<p class="dw"></p>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<div id="con_one_1">
+							<div class="news_height">
+								<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+									<tbody>
+										<tr class="cc">
+											<td width="5%"><p>序号</p></td>
+											<td width="15%"><p>股票代码</p></td>
+											<td width="15%"><p>股票名称</p></td>
+											<td width="15%"><p>数量（股）</p></td>
+											<td width="15%"><p>公允价值（元）</p></td>
+											<td width="15%"><p>占基金资产净值比例（％）</p></td>
+										</tr>
+										
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+		<div class="space_div"></div>
+		<div>
+			<table class="text">
+				<tbody>
+					<tr>
+						<td>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+<!--<a name="tabItem10_fundManagerBankRolldetail"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">期末按公允价值占基金资产净值比例大小排序的全国中小企业股份转让系统挂牌股票投资明细</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" style="word-break: break-all" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td><p>序号</p></td>
+									<td><p>股票代码</p></td>
+									<td><p>股票名称</p></td>
+									<td><p>数量（股）</p></td>
+									<td><p>公允价值（元）</p></td>
+									<td><p>占基金资产净值比例（％）</p></td>
+								</tr>
+															</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+<div class="space_div"></div>
+-->	
+<div class="space_div"></div>
+<a name="tabItem4_bondCombination"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">报告期末按债券品种分类的债券投资组合</td>
+							<td width="30"><a style="color: #fff; font-weight: bold;" href="javascript:show('/create_bond_combination.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=common')"></a></td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<p class="dw"></p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="5%"><p>序号</p></td>
+									<td width="20%"><p>债券品种</p></td>
+									<td width="20%"><p>公允价值（元）</p></td>
+									<td width="20%"><p>占基金资产净值比例（％）</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>1</p></td>
+									<td align="left"><p>国家债券</p></td>
+									<td align="right"><p>30,381,851.10</p></td>
+									<td align="right"><p>
+6.82
+</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>2</p></td>
+									<td align="left"><p>央行票据</p></td>
+
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>3</p></td>
+									<td align="left"><p>金融债券</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p></p></td>
+									<td align="left"><p>其中：政策性金融债</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>4</p></td>
+									<td align="left"><p>企业债券</p></td>
+									<td align="right"><p>350,222,779.19</p></td>
+									<td align="right"><p>
+78.65
+</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>5</p></td>
+									<td align="left"><p>企业短期融资券</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+
+								<tr class="dd">
+									<td align="center"><p>6</p></td>
+									<td align="left"><p>中期票据</p></td>
+									<td align="right"><p>36,672,156.16</p></td>
+									<td align="right"><p>
+8.24
+</p></td>
+								</tr>
+
+
+								<tr class="dd">
+									<td align="center"><p>7</p></td>
+									<td align="left"><p>可转债（可交换债）</p></td>
+									<td align="right"><p>193,515.47</p></td>
+									<td align="right"><p>
+0.04
+
+										</p>
+									</td>
+								</tr>
+
+								<tr class="dd">
+									<td align="center"><p>8</p></td>
+									<td align="left"><p>同业存单</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-
+										</p>
+									</td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>9</p></td>
+									<td align="left"><p>其他</p></td>
+									<td align="right"><p>-</p></td>
+									<td align="right"><p>-
+										</p>
+									</td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>10</p></td>
+									<td align="left"><p>合计</p></td>
+									<td align="right"><p>417,470,301.92</p></td>
+									<td align="right"><p>
+93.75
+
+										</p>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+	
+<div class="space_div"></div>
+<a name="tabItem4_topFiveBondDetail"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">报告期末按公允价值占基金资产净值比例大小排序的前五名债券投资明细</td>
+							<td width="30"><a style="color: #fff; font-weight: bold;" href="javascript:show('/create_topfive_bond_detail.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=common')"></a></td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<p class="dw"></p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="5%"><p>序号</p></td>
+									<td width="15%"><p>债券代码</p></td>
+									<td width="15%"><p>债券名称</p></td>
+									<td width="15%"><p>数量（张）</p></td>
+									<td width="15%"><p>公允价值（元）</p></td>
+									<td width="15%"><p>占基金资产净值比例（％）</p></td>
+								</tr>
+																<tr class="dd">
+									<td align="center"><p>1</p></td>
+									<td align="left"><p>137549</p></td>
+									<td align="left"><p>22华电03</p></td>
+									<td align="right"><p>300,000</p></td>
+									<td align="right"><p>30,650,334.25</p></td>
+									<td align="right"><p>
+								
+6.88
+	</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>2</p></td>
+									<td align="left"><p>138541</p></td>
+									<td align="left"><p>22南网02</p></td>
+									<td align="right"><p>300,000</p></td>
+									<td align="right"><p>30,434,075.34</p></td>
+									<td align="right"><p>
+								
+6.83
+	</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>3</p></td>
+									<td align="left"><p>102101310</p></td>
+									<td align="left"><p>21南京国投MTN001</p></td>
+									<td align="right"><p>200,000</p></td>
+									<td align="right"><p>20,892,065.75</p></td>
+									<td align="right"><p>
+								
+4.69
+	</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>4</p></td>
+									<td align="left"><p>149926</p></td>
+									<td align="left"><p>22深能01</p></td>
+									<td align="right"><p>200,000</p></td>
+									<td align="right"><p>20,491,470.96</p></td>
+									<td align="right"><p>
+								
+4.60
+
+	</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>5</p></td>
+									<td align="left"><p>175263</p></td>
+									<td align="left"><p>20中金12</p></td>
+									<td align="right"><p>200,000</p></td>
+									<td align="right"><p>20,376,695.89</p></td>
+									<td align="right"><p>
+								
+4.58
+	</p></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+   
+<div class="space_div"></div>
+<a name="tabItem7_investAssembledReportZiChanZhiChi"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">报告期末按公允价值占基金资产净值比例大小排序的前十名资产支持证券投资明细</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+			</tbody>
+</table>
+
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+						注：本报告期末未持有资产支持证券。 
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<div class="space_div"></div>
+<a name="tabItem4_investAssembledReportGuiJinShu"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">报告期末按公允价值占基金资产净值比例大小排序的前五名贵金属投资明细</td>
+							<td width="30"><a style="color: #fff; font-weight: bold;"
+								href="javascript:show('/create_invest_assembled_report_qimoquanzheng.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=common')"></a></td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<p class="dw"></p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="15%"><p>序号</p></td>
+									<td width="15%"><p>贵金属代码</p></td>
+									<td width="15%"><p>贵金属名称</p></td>
+									<td width="15%"><p>数量（份）</p></td>
+									<td width="15%"><p>公允价值（元）</p></td>
+									<td width="15%"><p>占基金资产净值比例（％）</p></td>
+								</tr>
+								
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+						注：本报告期末未持有贵金属。 
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+		
+<div class="space_div"></div>
+<a name="tabItem4_investAssembledReportQiMoQuanZheng"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">报告期末按公允价值占基金资产净值比例大小排序的前五名权证投资明细</td>
+							<td width="30"><a style="color: #fff; font-weight: bold;"
+								href="javascript:show('/create_invest_assembled_report_qimoquanzheng.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=common')"></a></td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+			</tbody>
+</table>
+
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+						注：本报告期末未持有权证。 
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+    	
+<a name="tabItem4_baoGaoQiMoBenJiJinTouZiDeGuZhiQiHuoJiaoYiQingKuangShuoMing"></a>
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">报告期末本基金投资的股指期货交易情况说明</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<a name="tabItem4_baoGaoQiMoBenJiJinTouZiDeGuZhiQiHuoChiCangHeSunYiMingX"></a>
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">报告期末本基金投资的股指期货持仓和损益明细</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="15%"><p>代码</p></td>
+									<td width="15%"><p>名称</p></td>
+									<td width="15%"><p>持仓量（买/卖）</p></td>
+									<td width="15%"><p>合约市值(元)</p></td>
+									<td width="15%"><p>公允价值变动(元)</p></td>
+									<td width="15%"><p>风险说明</p></td>
+								</tr>
+																<tr class="dd">
+									<td colspan="3" align="left"><p>公允价值变动总额合计(元)</p></td>
+									<td colspan="3" align="center"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td colspan="3" align="left"><p>股指期货投资本期收益(元)</p></td>
+									<td colspan="3" align="center"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td colspan="3" align="left"><p>股指期货投资本期公允价值变动(元)</p></td>
+									<td colspan="3" align="center"><p>-</p></td>
+								</tr>
+
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<a name="tabItem4_baoGaoQiMoBenJiJinTouZiDeGuZhiQiHuoChiCangHeSunYiMingXBeiZhu"></a>
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<a name="tabItem4_benJiJinTouZiGuZhiQiHuoDeTouZiZhengCe"></a>
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">本基金投资股指期货的投资政策</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td class="Contentbox">
+				<div id="con_one_1" class="text_area">本报告期末未持有股指期货。</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+	
+	
+<a name="tabItem4_baoGaoQiMoBenJiJinTouZiDeGuoZhaiQiHuoJiaoYiQingKuangShuoMing"></a>
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">报告期末本基金投资的国债期货交易情况说明</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+
+<a name="tabItem4_benJiJinTouZiGuoZhaiQiHuoDeTouZiZhengCe"></a>
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">本期国债期货投资政策</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td class="Contentbox">
+				<div id="con_one_1" class="text_area">本报告期末未持有国债期货。</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+
+<a name="tabItem4_baoGaoQiMoBenJiJinTouZiDeGuoZhaiQiHuoChiCangHeSunYiMingX"></a>
+
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">报告期末本基金投资的国债期货持仓和损益明细</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="16%"><p>代码</p></td>
+									<td width="16%"><p>名称</p></td>
+									<td width="16%"><p>持仓量（买/卖）</p></td>
+									<td width="16%"><p>合约市值(元)</p></td>
+									<td width="16%"><p>公允价值变动(元)</p></td>
+									<td width="20%"><p>风险指标说明</p></td>
+								</tr>
+
+								<tr class="dd">
+									<td colspan="3" align="left"><p>公允价值变动总额合计(元)</p></td>
+									<td colspan="3" align="center"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td colspan="3" align="left"><p>国债期货投资本期收益（元）</p></td>
+									<td colspan="3" align="center"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td colspan="3" align="left"><p>国债期货投资本期公允价值变动(元)</p></td>
+									<td colspan="3" align="center"><p>-</p></td>
+								</tr>
+
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<a name="tabItem4_baoGaoQiMoBenJiJinTouZiDeGuZhiQiHuoChiCangHeSunYiMingXBeiZhu"></a>
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<a name="tabItem4_benJiJinTouZiGuoZhaiQiHuoDePingJia"></a>
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">本期国债期货投资评价</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td class="Contentbox">
+				<div id="con_one_1" class="text_area"></div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+
+<a name="tabItem4_shenMingShiFouLiAnHuoChuFa"></a>
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">投资组合报告附注</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<a name="tabItem4_shenMingShiFouLiAnHuoChuFa"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">本基金投资的前十名证券的发行主体本期是否出现被监管部门立案调查，或在报告编制日前一年内受到公开谴责、处罚的情形</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td class="Contentbox">
+				<div id="con_one_1" class="text_area">
+					基金投资前十名证券的发行主体中，在报告编制日前一年内，深圳能源集团股份有限公司受到深圳证监局行政监管措施决定书〔2024〕36号文、深圳证券交易所公司部监管函〔2024〕第25号文处罚。<br/>在报告编制日前一年内，中国国际金融股份有限公司受到北京证监局《关于对中国国际金融股份有限公司采取责令增加合规检查次数行政监管措施的决定》（2024）97号文、北京证监局《关于对中国国际金融股份有限公司采取责令改正行政监管措施的决定》（2024）117号文、深圳证券交易所深证函（2024）541号文、2024年9月30日北京证监局《关于对中国国际金融股份有限公司采取出具警示函行政监管措施的决定》、2024年10月11日中国证券监督管理委员会《立案告知书》（证监立案字 0382024014 号）、中国证券监督管理委员会行政处罚决定书（2024）152号、深圳证券交易所深证函（2025）181号文处罚。<br/>本基金对上述主体所发行证券的投资决策程序符合公司投资制度的规定。除上述主体外，基金管理人未发现本基金投资的前十名证券的发行主体出现本期被监管部门立案调查，或在报告编制日前一年内受到公开谴责、处罚的情形。</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<a name="tabItem4_shenMingShiFouChaoChu"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">基金投资的前十名股票是否超出基金合同规定的备选股票库</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td class="Contentbox">
+				<div id="con_one_1" class="text_area">
+					基金投资的前十名股票未超出基金合同规定的备选股票库。</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<div class="space_div"></div>
+<a name="tabItem4_QTZiChanGC"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">其他资产构成</td>
+							<td width="30"><a style="color: #fff; font-weight: bold;"
+								href="javascript:show('/create_invest_assembled_report_zichan.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=common')"></a>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<p class="dw">单位：人民币元</p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="5%"><p>序号</p></td>
+									<td width="20%"><p>名称</p></td>
+									<td width="20%"><p>金额（元）</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>1</p></td>
+									<td align="left"><p>存出保证金</p></td>
+									<td align="right"><p>20,656.71</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>2</p></td>
+									<td align="left"><p>应收证券清算款</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>3</p></td>
+									<td align="left"><p>应收股利</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>4</p></td>
+									<td align="left"><p>应收利息</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>5</p></td>
+									<td align="left"><p>应收申购款</p></td>
+									<td align="right"><p>2,972,832.59</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>6</p></td>
+									<td align="left"><p>其他应收款</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								
+								<tr class="dd">
+									<td align="center"><p>7</p></td>
+									<td align="left"><p>其他</p></td>
+									<td align="right"><p>-</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="center"><p>8</p></td>
+									<td align="left"><p>合计</p></td>
+									<td align="right"><p>2,993,489.30</p></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<div class="space_div"></div>
+<a name="tabItem4_investAssembledReportZhaiQuan"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">报告期末持有的处于转股期的可转换债券明细</td>
+							<td width="30"><a style="color: #fff; font-weight: bold;"
+								href="javascript:show('/create_invest_assembled_report_zhaiquan.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=common')"></a>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+				<tr>
+			<td>
+				<p class="dw">单位：人民币元</p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="5%"><p>序号</p></td>
+									<td width="20%"><p>债券代码</p></td>
+									<td width="20%"><p>债券名称</p></td>
+									<td width="20%"><p>公允价值（元）</p></td>
+
+									<td width="20%"><p>占基金资产净值比例（％）</p></td>
+								</tr>
+								<tr class="dd">
+									<td width="5%"><p>1</p></td>
+									<td width="20%"><p>127040</p></td>
+									<td width="20%"><p>国泰转债</p></td>
+									<td width="20%" align="right"><p>169,235.56</p></td>
+									<td width="20%" align="right"><p>
+0.04
+</p></td>
+								</tr>
+								<tr class="dd">
+									<td width="5%"><p>2</p></td>
+									<td width="20%"><p>113616</p></td>
+									<td width="20%"><p>韦尔转债</p></td>
+									<td width="20%" align="right"><p>24,279.91</p></td>
+									<td width="20%" align="right"><p>
+0.01
+</p></td>
+								</tr>
+
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+	<a name="tabItem4_investAssembledReportTopTenStock"></a>
+	<div class="space_div"></div>
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+		<tbody>
+			<tr>
+				<td class="Menubox_level3">
+					<table border="0" cellpadding="0" cellspacing="0" width="100%">
+						<tbody>
+							<tr>
+								<td style="padding-left: 15px;" class="write_text_level3">报告期末前十名股票中存在流通受限情况的说明</td>
+								<td width="30"><a style="color: #fff; font-weight: bold;"
+									href="javascript:show('/create_invest_assembled_report_topten_stock.instance?instanceid=808080804ca256b9014cdb8c71327784&amp;type=common')"></a>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<p class="dw">单位：人民币元</p>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<div id="con_one_1">
+						<div class="news_height">
+							<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+								<tbody>
+									<tr class="cc">
+										<td width="5%"><p>序号</p></td>
+										<td width="17%"><p>股票代码</p></td>
+										<td width="17%"><p>股票名称</p></td>
+										<td width="17%"><p>流通受限部分的公允价值（元）</p></td>
+	
+										<td width="17%"><p>占基金资产净值比例（％）</p></td>
+										<td width="17%"><p>流通受限情况说明</p></td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	<div class="space_div"></div>
+	<div>
+		<table class="text">
+			<tbody>
+				<tr>
+					<td>
+							注：本基金本报告期末前十名股票中不存在流通受限情况。 
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+
+<div class="space_div"></div>
+<a name="tabItem4_qiTaXuShuoMingDeZhongYaoShiXiang"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">投资组合报告附注的其他文字描述部分</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td class="Contentbox">
+				<div id="con_one_1" class="text_area">无。</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+    	
+</div>
+
+<div id="tabItem5" >
+	</div>	
+
+<div id="tabItem5" >
+<div class="space_div"></div>
+
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="97%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">管理人中管理人（MOM）产品</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+		<div class="space_div"></div>
+<a name="tabItem6_QianShiMingJiJinTouZiMingXi"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="97%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">报告期末各资产单元的资产净值及占基金资产净值的比例</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<p class="dw"></p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="25%"><p>资产单元</p></td>
+									<td width="25%"><p>投资顾问名称</p></td>
+									<td width="25%"><p>报告期末资产单元资产净值（元）</p></td>
+									<td width="25%"><p>占期末基金资产净值比例（%）</p></td>
+								</tr>
+															</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<div>
+
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div><div class="space_div"></div>
+<a name="tabItem6_QianShiMingJiJinTouZiMingXi"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="97%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">基金投资顾问</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<p class="dw"></p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="25%"><p>序号</p></td>
+									<td width="25%"><p>投资顾问名称</p></td>
+									<td width="25%"><p>是否与基金管理人存在关联关系</p></td>
+									<td width="25%"><p>是否与其他投资顾问存在关联关系</p></td>
+								</tr>
+															</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<div>
+
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>	
+</div>
+<div id="tabItem6" >
+<!--备注51、备注86、备注134 -->
+<a name="tabItem6_openTypeFundShareChange"></a>
+<div class="space_div"></div>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">开放式基金份额变动</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<p class="dw">单位：份</p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="30%"><p>项目</p></td>
+									<td><p>数值</p></td>
+								</tr>
+																<tr class="dd">
+									<td align="left"><p>报告期期初基金份额总额</p></td>
+									<td align="right"><p>526,484,766.99</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>报告期期间基金总申购份额</p></td>
+									<td align="right"><p>53,379,184.05</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>减：报告期期间基金总赎回份额</p></td>
+									<td align="right"><p>143,423,369.90</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>报告期期间基金拆分变动份额（份额减少以“-”填列）</p></td>
+									<td align="right"><p>0</p></td>
+								</tr>
+
+								<tr class="dd">
+									<td align="left"><p>报告期期末基金份额总额</p></td>
+									<td align="right"><p>436,440,581.14</p></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+						注：截至本报告期末，本公司从业人员及其配偶购买持有本集合资产管理计划份额合计83,269.19份。 
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div></div>  
+     
+        
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">基金管理人运用固有资金投资本基金情况</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<a name="tabItem10_fundManagerBankRoll"></a>
+ 
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">基金管理人持有本基金份额变动情况</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<p class="dw">单位：份</p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="30%"><p>项目</p></td>
+									<td><p>基金份额</p></td>
+								</tr>
+								<!-- 备注54 -->
+																<tr class="dd">
+									<td align="left"><p>报告期期初管理人持有的本基金份额</p></td>
+									<td align="right"><p></p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>报告期期间买入/申购总份额</p></td>
+									<td align="right"><p></p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>报告期期间卖出/赎回总份额</p></td>
+									<td align="right"><p></p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>报告期期末管理人持有的本基金份额</p></td>
+									<td align="right"><p></p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>报告期期末持有的本基金份额占基金总份额比例(%)</p></td>
+									<td align="right"><p>-%</p></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+						注：报告期内管理人未运用固有资金投资本基金。 
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+<div class="space_div"></div>
+<a name="tabItem10_fundManagerBankRolldetail"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox_level3">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text_level3">基金管理人运用固有资金投资本基金交易明细</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" style="word-break: break-all" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td><p>序号</p></td>
+									<td><p>交易方式</p></td>
+									<td><p>交易日期</p></td>
+									<td><p>交易份额（份）</p></td>
+									<td><p>交易金额（元）</p></td>
+									<td><p>适用费率</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>合计</p></td>
+									<td align="right"><p></p></td>
+									<td align="right"><p></p></td>
+									<td align="right"><p></p></td>
+									<td align="right"><p></p></td>
+									<td align="right"><p></p></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+						注：报告期内管理人未运用固有资金投资本基金。 
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+<div class="space_div"></div>
+<a name="tabItem9_faQiShiJiJinFaQiZiJinChiYouFenEQingKuang"></a>
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">报告期末发起式基金发起资金持有份额情况</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td>
+				<div id="con_one_1">
+					<div class="news_height">
+						<table class="bb" border="0" cellpadding="0" cellspacing="1" width="100%">
+							<tbody>
+								<tr class="cc">
+									<td width="17%"><p>项目</p></td>
+									<td width="17%"><p>持有份额总数</p></td>
+									<td width="17%"><p>持有份额占基金总份额比例</p></td>
+									<td width="17%"><p>发起份额总数</p></td>
+									<td width="17%"><p>发起份额占基金总份额比例</p></td>
+									<td width="15%"><p>发起份额承诺持有期限</p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>基金管理人固有资金</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="15%"><p></p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>基金管理人高级管理人员</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="15%"><p></p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>基金经理等人员</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="15%"><p></p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>基金管理人股东</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="15%"><p></p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>其他</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="15%"><p></p></td>
+								</tr>
+								<tr class="dd">
+									<td align="left"><p>合计</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="17%"><p></p></td>
+									<td width="17%"><p>-%</p></td>
+									<td width="15%"><p></p></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>
+<div>
+	<table class="text">
+		<tbody>
+			<tr>
+				<td>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+	
+<div id="tabItem7" >
+<a name="tabItem7_danYiTouZiZheChiYouJiJinFenEBiLI"></a>
+<div class="space_div"></div>   
+<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+	<tbody>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody>
+						<tr>
+							<td style="padding-left: 15px;" class="write_text">影响投资者决策的其他重要信息</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td class="Menubox">
+				<table border="0" cellpadding="0" cellspacing="0" width="100%">
+					<tbody><tr>
+						<td style="padding-left:15px;" class="write_text">
+								报告期内单一投资者持有基金份额比例达到或超过20%的情况
+						</td>
+					</tr>
+				</tbody></table>
+			</td>
+		</tr>
+		<tr>
+		<td>
+			<div id="con_one_1">
+			<div class="news_height">
+			<table class="bb" style="word-break: break-all" border="0" cellpadding="0" cellspacing="1" width="100%">
+				<tbody>
+					<tr class="cc">
+						<td rowspan="2"><p>投资者类别</p></td>
+						<td colspan="5"><p>报告期内持有基金份额变化情况</p></td>
+						<td colspan="2"><p>报告期末持有基金情况</p></td>
+					</tr>
+					<tr class="cc">
+						<td><p>序号</p></td>
+						<td><p>持有基金份额比例达到或者超过20%的时间区间</p></td>
+						<td><p>期初份额</p></td>
+						<td><p>申购份额</p></td>
+						<td><p>赎回份额</p></td>
+						<td><p>持有份额</p></td>
+						<td><p>份额占比</p></td>
+					</tr>
+					<tr class="dd">
+						<td rowspan="1"><p>机构</p></td>
+							<td><p>-</p></td>
+							<td><p>-</p></td>
+							<td align="right"><p>-</p></td>
+							<td align="right"><p>-</p></td>
+							<td align="right"><p>-</p></td>
+							<td align="right"><p>-</p></td>
+							<td align="right"><p>-</p></td>
+					</tr>
+					<tr class="dd">
+						<td rowspan="1"><p>个人</p></td>
+							<td><p>-</p></td>
+							<td><p>-</p></td>
+							<td align="right"><p>-</p></td>
+							<td align="right"><p>-</p></td>
+							<td align="right"><p>-</p></td>
+							<td align="right"><p>-</p></td>
+							<td align="right"><p>-</p></td>
+					</tr>
+					<tr class="dd">
+						<td colspan="8" align="center"><p>产品特有风险</p></td>
+					</tr>
+					<tr class="dd">
+						<td colspan="8"><p>-</p></td>
+					</tr>
+				</tbody>
+			</table>
+			</div>
+			</div>        
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="space_div"></div>   
+<div>
+	<table class="text">
+		<tbody><tr>
+			<td>
+				注：本基金本报告期内未出现单一投资者持有基金份额比例达到或超过 20%的情况。
+			</td>
+		</tr>
+	</tbody></table>
+</div>
+	<a name="tabItem7_otherMessage"></a>
+	<div class="space_div"></div>
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+		<tbody>
+			<tr>
+				<td class="Menubox">
+					<table border="0" cellpadding="0" cellspacing="0" width="100%">
+						<tbody>
+							<tr>
+								<td style="padding-left: 15px;" class="write_text">影响投资者决策的其他重要信息</td>
+							</tr>
+						</tbody>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td class="Contentbox">
+					<div id="con_one_1" class="text_area">无。</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>		
+<div id="tabItem8" >
+	<a name="tabItem8_memoCatalog"></a>
+	<div class="space_div"></div>
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+		<tbody>
+			<tr>
+				<td class="Menubox">
+					<table border="0" cellpadding="0" cellspacing="0" width="100%">
+						<tbody>
+							<tr>
+								<td style="padding-left: 15px;" class="write_text">备查文件目录</td>
+							</tr>
+						</tbody>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td class="Menubox">
+					<table border="0" cellpadding="0" cellspacing="0" width="100%">
+						<tbody>
+							<tr>
+								<td style="padding-left: 15px;" class="write_text">备查文件目录</td>
+							</tr>
+						</tbody>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td class="Contentbox">
+					<div id="con_one_1" class="text_area">1、中国证监会同意合同变更的文件；<br/>2、华安证券合赢三个月持有期债券型集合资产管理计划资产管理合同；<br/>3、华安证券合赢三个月持有期债券型集合资产管理计划托管协议；<br/>4、华安证券合赢三个月持有期债券型集合资产管理计划招募说明书及其更新；<br/>5、管理人业务资格批件、营业执照；<br/>6、托管人业务资格批件、营业执照；<br/>  7、报告期内披露的各项公告。</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	<div class="space_div"></div>
+	<a name="tabItem8_CFDD"></a>
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+		<tbody>
+			<tr>
+				<td class="Menubox">
+					<table border="0" cellpadding="0" cellspacing="0" width="100%">
+						<tbody>
+							<tr>
+								<td style="padding-left: 15px;" class="write_text">存放地点</td>
+							</tr>
+						</tbody>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td class="Contentbox">
+					<div id="con_one_1" class="text_area">安徽省合肥市政务区天鹅湖路198号。</div>
+				</td>
+			</tr>			
+		</tbody>
+	</table>
+	<div class="space_div"></div>
+	<a name="tabItem8_CYFS"></a>
+	<table align="left" border="0" cellpadding="0" cellspacing="0" width="97%">
+		<tbody>
+			<tr>
+				<td class="Menubox">
+					<table border="0" cellpadding="0" cellspacing="0" width="100%">
+						<tbody>
+							<tr>
+								<td style="padding-left: 15px;" class="write_text">查阅方式</td>
+							</tr>
+						</tbody>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td class="Contentbox">
+					<div id="con_one_1" class="text_area">投资者可到管理人、托管人的办公场所或管理人网站免费查阅备查文件。在支付工本费后，投资者可在合理时间内取得备查文件的复制件或复印件。<br/>  投资者对本报告如有疑问，可咨询本管理人。<br/>  咨询电话：95318<br/>  公司网址：https://www.hazq.com/zg/home/index.shtml</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+                    </td>
+                    <td class="shadow_right" width="4">
+                        <img src="../../../resource/space.gif"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="shadow_bottom" height="4">
+                        <img src="../../../resource/space.gif"/>
+                    </td>
+                    <td align="left" height="4" valign="top" width="4">
+                        <img src="../../../resource/Shadow4.gif" height="4" width="4"/>
+                    </td>
+                </tr>
+            </tbody></table>
+        </td>
+    </tr>
+</tbody></table> 
+<!--主体内容结束-->
+
+<script type="text/javascript" src="../../../resource/instance_detail.js"></script>
+</body></html>
