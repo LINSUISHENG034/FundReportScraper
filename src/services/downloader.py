@@ -1,24 +1,30 @@
-import aiohttp
-import asyncio
+import requests
 from pathlib import Path
 from src.core.logging import get_logger
+from src.core.config import settings
 
 logger = get_logger(__name__)
 
 
 class Downloader:
     """
-    核心下载器服务 (基于 aiohttp)
-    专门负责文件下载的独立服务，使用 aiohttp 以更好地兼容 gevent 环境。
+    核心下载器服务 (基于 requests)
+    专门负责文件下载的独立服务。
+    使用 requests 库，以在 gevent 环境中获得最佳兼容性和稳定性。
     """
 
-    def __init__(self, timeout: int = 30):
-        self.timeout = aiohttp.ClientTimeout(total=timeout)
+    def __init__(self, timeout: int = 120):
+        """
+        初始化下载器。
+        Args:
+            timeout: 请求超时时间（秒）。
+        """
+        self.timeout = timeout
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+            'User-Agent': settings.scraper.user_agent
         }
 
-    async def download_to_file(self, url: str, destination: Path) -> dict:
+    def download_to_file(self, url: str, destination: Path) -> dict:
         """
         从给定的URL下载内容并保存到目标文件。
         
@@ -33,38 +39,43 @@ class Downloader:
         bound_logger.info("downloader.download.start")
 
         try:
-            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
-                async with session.get(url, allow_redirects=True) as response:
-                    response.raise_for_status()  # 针对 4xx/5xx 错误抛出异常
+            # 使用 requests.get 进行同步下载
+            # gevent 会自动处理这里的阻塞IO，使其变为非阻塞
+            with requests.get(url, headers=self.headers, timeout=self.timeout, allow_redirects=True, stream=True) as response:
+                response.raise_for_status()  # 针对 4xx/5xx 错误抛出异常
 
-                    destination.parent.mkdir(parents=True, exist_ok=True)
-                    content = await response.read()
-                    destination.write_bytes(content)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                
+                # 使用 stream=True 和 iter_content 避免一次性将大文件读入内存
+                with open(destination, 'wb') as f:
+                    file_size = 0
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                        file_size += len(chunk)
 
-                    bound_logger.info(
-                        "downloader.download.success",
-                        file_size=len(content)
-                    )
-                    
-                    return {
-                        "success": True,
-                        "file_path": str(destination),
-                        "file_size": len(content)
-                    }
+                bound_logger.info(
+                    "downloader.download.success",
+                    file_size=file_size
+                )
+                
+                return {
+                    "success": True,
+                    "file_path": str(destination),
+                    "file_size": file_size
+                }
 
-        except aiohttp.ClientResponseError as e:
+        except requests.exceptions.HTTPError as e:
             bound_logger.error(
                 "downloader.download.http_error",
-                status_code=e.status,
-                message=e.message
+                status_code=e.response.status_code
             )
             return {
                 "success": False,
-                "error": f"HTTP {e.status}: {e.message}",
+                "error": f"HTTP Error: {e.response.status_code}",
                 "error_type": "http_error"
             }
             
-        except asyncio.TimeoutError:
+        except requests.exceptions.Timeout:
             bound_logger.error("downloader.download.timeout_error")
             return {
                 "success": False,
@@ -72,6 +83,17 @@ class Downloader:
                 "error_type": "timeout"
             }
             
+        except requests.exceptions.RequestException as e:
+            bound_logger.error(
+                "downloader.download.request_exception",
+                error=str(e)
+            )
+            return {
+                "success": False,
+                "error": f"Request failed: {e}",
+                "error_type": "request_exception"
+            }
+
         except Exception as e:
             bound_logger.error(
                 "downloader.download.general_error",

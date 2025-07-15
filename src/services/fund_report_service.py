@@ -201,7 +201,7 @@ class FundReportService:
                 }
             }
     
-    async def download_report(self, report: Dict, save_dir: Path) -> Dict:
+    def download_report(self, report: Dict, save_dir: Path) -> Dict:
         """
         下载单个报告 (已重构)
         此方法现在只负责业务流程（构造URL和路径），并将实际下载委托给Downloader服务。
@@ -225,7 +225,7 @@ class FundReportService:
             file_path = save_dir / filename
 
             # 3. 委托给Downloader服务
-            download_result = await self.downloader.download_to_file(download_url, file_path)
+            download_result = self.downloader.download_to_file(download_url, file_path)
             
             # 4. 附加业务信息并返回
             if download_result["success"]:
