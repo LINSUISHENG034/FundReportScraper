@@ -7,7 +7,7 @@ from src.core.fund_search_parameters import ReportType, FundType, FundSearchCrit
 from src.services.fund_report_service import FundReportService
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
 from src.services.download_task_service import DownloadTaskService
-from src.tasks.download_tasks import download_fund_report_task
+# Phase 3: 任务编排已迁移到 start_download_pipeline，通过 DownloadTaskService 调用
 
 @click.group()
 def cli():

@@ -12,6 +12,7 @@ from typing import Dict, List
 
 from src.services.fund_report_service import FundReportService
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
+from src.services.downloader import Downloader
 from src.core.fund_search_parameters import FundSearchCriteria, ReportType, FundType
 
 
@@ -25,9 +26,17 @@ def mock_scraper():
 
 
 @pytest.fixture
-def report_service(mock_scraper):
-    """提供一个注入了模拟 Scraper 的服务实例"""
-    return FundReportService(scraper=mock_scraper)
+def mock_downloader():
+    """提供一个被模拟的 Downloader 实例"""
+    downloader = MagicMock(spec=Downloader)
+    downloader.download_file = AsyncMock()
+    return downloader
+
+
+@pytest.fixture
+def report_service(mock_scraper, mock_downloader):
+    """提供一个注入了模拟 Scraper 和 Downloader 的服务实例"""
+    return FundReportService(scraper=mock_scraper, downloader=mock_downloader)
 
 
 @pytest.fixture
@@ -146,49 +155,57 @@ class TestFundReportServiceDownloadReport:
     """测试 download_report 方法"""
     
     @pytest.mark.asyncio
-    async def test_download_report_success(self, report_service, mock_scraper, tmp_path):
+    async def test_download_report_success(self, report_service, mock_scraper, mock_downloader, tmp_path):
         """测试下载报告成功场景"""
         # 安排 (Arrange)
         report = {
             "uploadInfoId": "1752537343",
             "fundCode": "013060"
         }
-        mock_content = b"<?xml version='1.0' encoding='UTF-8'?>\n<xbrl>mock xbrl content</xbrl>"
-        mock_scraper.download_xbrl_content.return_value = mock_content
+        download_url = "https://example.com/download/1752537343"
+        mock_scraper.get_download_url.return_value = download_url
+        
+        # Mock downloader success response
+        mock_downloader.download_to_file.return_value = {
+            "success": True,
+            "file_path": str(tmp_path / "013060_REPORT_123456.xbrl"),
+            "file_size": 1024
+        }
         
         # 行动 (Act)
         result = await report_service.download_report(report, tmp_path)
         
         # 断言 (Assert)
         # 验证 scraper 被正确调用
-        mock_scraper.download_xbrl_content.assert_called_once_with("1752537343")
+        mock_scraper.get_download_url.assert_called_once_with("1752537343")
+        
+        # 验证 downloader 被正确调用
+        mock_downloader.download_to_file.assert_called_once()
         
         # 验证返回结果
         assert result["success"] is True
         assert result["fund_code"] == "013060"
         assert result["upload_info_id"] == "1752537343"
-        assert result["file_size"] == len(mock_content)
-        
-        # 验证文件被创建
-        filename = result["filename"]
-        file_path = tmp_path / filename
-        assert file_path.exists()
-        
-        # 验证文件内容
-        with open(file_path, 'rb') as f:
-            saved_content = f.read()
-        assert saved_content == mock_content
+        assert "filename" in result
+        assert result["filename"].startswith("013060_REPORT_")
+        assert result["filename"].endswith(".xbrl")
     
     @pytest.mark.asyncio
-    async def test_download_report_scraper_error(self, report_service, mock_scraper, tmp_path):
-        """测试下载过程中scraper出错的场景"""
+    async def test_download_report_scraper_error(self, report_service, mock_scraper, mock_downloader, tmp_path):
+        """测试下载过程中downloader出错的场景"""
         # 安排 (Arrange)
         report = {
             "uploadInfoId": "1752537343",
             "fundCode": "013060"
         }
+        download_url = "https://example.com/download/1752537343"
+        mock_scraper.get_download_url.return_value = download_url
+        
         error_message = "下载失败"
-        mock_scraper.download_xbrl_content.side_effect = Exception(error_message)
+        mock_downloader.download_to_file.return_value = {
+            "success": False,
+            "error": error_message
+        }
         
         # 行动 (Act)
         result = await report_service.download_report(report, tmp_path)
@@ -213,122 +230,9 @@ class TestFundReportServiceDownloadReport:
         assert result["fund_code"] == "Unknown"
 
 
-class TestFundReportServiceBatchDownload:
-    """测试 batch_download 方法"""
-    
-    @pytest.mark.asyncio
-    async def test_batch_download_mixed_results(self, report_service, sample_reports, tmp_path):
-        """测试批量下载混合结果场景（部分成功，部分失败）"""
-        # 安排 (Arrange)
-        # 使用 patch 来替换 download_report 方法
-        with patch.object(report_service, 'download_report') as mock_download:
-            # 设置第一次调用返回成功，第二次调用返回失败
-            mock_download.side_effect = [
-                {
-                    "success": True,
-                    "filename": "013060_REPORT_123456.xbrl",
-                    "file_path": str(tmp_path / "013060_REPORT_123456.xbrl"),
-                    "file_size": 1024,
-                    "fund_code": "013060",
-                    "upload_info_id": "1752537343"
-                },
-                {
-                    "success": False,
-                    "error": "下载失败",
-                    "fund_code": "017198"
-                }
-            ]
-            
-            # 行动 (Act)
-            result = await report_service.batch_download(sample_reports, tmp_path)
-            
-            # 断言 (Assert)
-            assert result["success"] is True  # 批处理本身是成功的
-            
-            # 验证统计信息
-            statistics = result["statistics"]
-            assert statistics["total"] == 2
-            assert statistics["success"] == 1
-            assert statistics["failed"] == 1
-            assert "duration" in statistics
-            
-            # 验证结果列表
-            results = result["results"]
-            assert len(results) == 2
-            assert results[0]["success"] is True
-            assert results[1]["success"] is False
-            
-            # 验证 download_report 被正确调用
-            assert mock_download.call_count == 2
-    
-    @pytest.mark.asyncio
-    async def test_batch_download_all_success(self, report_service, sample_reports, tmp_path):
-        """测试批量下载全部成功场景"""
-        # 安排 (Arrange)
-        with patch.object(report_service, 'download_report') as mock_download:
-            # 设置所有调用都返回成功
-            mock_download.return_value = {
-                "success": True,
-                "filename": "test_file.xbrl",
-                "file_path": str(tmp_path / "test_file.xbrl"),
-                "file_size": 1024,
-                "fund_code": "123456",
-                "upload_info_id": "1752537343"
-            }
-            
-            # 行动 (Act)
-            result = await report_service.batch_download(sample_reports, tmp_path)
-            
-            # 断言 (Assert)
-            assert result["success"] is True
-            
-            statistics = result["statistics"]
-            assert statistics["total"] == 2
-            assert statistics["success"] == 2
-            assert statistics["failed"] == 0
-    
-    @pytest.mark.asyncio
-    async def test_batch_download_empty_list(self, report_service, tmp_path):
-        """测试批量下载空列表场景"""
-        # 行动 (Act)
-        result = await report_service.batch_download([], tmp_path)
-        
-        # 断言 (Assert)
-        assert result["success"] is True
-        
-        statistics = result["statistics"]
-        assert statistics["total"] == 0
-        assert statistics["success"] == 0
-        assert statistics["failed"] == 0
-    
-    @pytest.mark.asyncio
-    async def test_batch_download_with_concurrency_limit(self, report_service, tmp_path):
-        """测试批量下载并发限制"""
-        # 安排 (Arrange)
-        # 创建更多报告来测试并发
-        many_reports = [
-            {"uploadInfoId": f"175253734{i}", "fundCode": f"01306{i}"}
-            for i in range(5)
-        ]
-        
-        with patch.object(report_service, 'download_report') as mock_download:
-            mock_download.return_value = {
-                "success": True,
-                "filename": "test_file.xbrl",
-                "file_path": str(tmp_path / "test_file.xbrl"),
-                "file_size": 1024,
-                "fund_code": "123456",
-                "upload_info_id": "1752537343"
-            }
-            
-            # 行动 (Act)
-            result = await report_service.batch_download(many_reports, tmp_path, max_concurrent=2)
-            
-            # 断言 (Assert)
-            assert result["success"] is True
-            assert result["statistics"]["total"] == 5
-            assert result["statistics"]["success"] == 5
-            assert mock_download.call_count == 5
+# TestFundReportServiceBatchDownload 类已移除
+# batch_download 方法已被新的任务分解架构替代
+# 请使用 DownloadTaskService 和相关的原子任务进行批量下载
 
 
 class TestFundReportServiceSearchAllPages:
@@ -457,155 +361,6 @@ class TestFundReportServiceSearchAllPages:
         assert result["pagination"]["total_reports"] == 2
 
 
-class TestFundReportServiceEnhancedBatchDownload:
-    """测试 enhanced_batch_download 方法"""
-    
-    @pytest.mark.asyncio
-    async def test_enhanced_batch_download_success(self, report_service, tmp_path):
-        """测试增强批量下载成功场景"""
-        # 安排 (Arrange)
-        criteria = FundSearchCriteria(
-            year=2024,
-            report_type=ReportType.ANNUAL,
-            page=1,
-            page_size=20
-        )
-        
-        sample_reports = [
-            {"uploadInfoId": "1752537343", "fundCode": "013060"},
-            {"uploadInfoId": "1752537342", "fundCode": "017198"}
-        ]
-        
-        # 模拟搜索和下载
-        with patch.object(report_service, 'search_all_pages') as mock_search, \
-             patch.object(report_service, 'batch_download') as mock_batch_download:
-            
-            mock_search.return_value = {
-                "success": True,
-                "data": sample_reports,
-                "pagination": {"total_pages": 1}
-            }
-            
-            mock_batch_download.return_value = {
-                "success": True,
-                "statistics": {
-                    "total": 2,
-                    "success": 2,
-                    "failed": 0,
-                    "duration": 5.0
-                },
-                "results": [
-                    {"success": True, "fund_code": "013060"},
-                    {"success": True, "fund_code": "017198"}
-                ]
-            }
-            
-            # 行动 (Act)
-            result = await report_service.enhanced_batch_download(criteria, tmp_path)
-            
-            # 断言 (Assert)
-            assert result["success"] is True
-            assert result["statistics"]["total"] == 2
-            assert result["statistics"]["success"] == 2
-            assert "search_info" in result
-            assert result["search_info"]["total_found"] == 2
-            
-            # 验证方法调用
-            mock_search.assert_called_once_with(criteria)
-            mock_batch_download.assert_called_once_with(sample_reports, tmp_path, 3)
-    
-    @pytest.mark.asyncio
-    async def test_enhanced_batch_download_search_failure(self, report_service, tmp_path):
-        """测试搜索失败场景"""
-        # 安排 (Arrange)
-        criteria = FundSearchCriteria(
-            year=2024,
-            report_type=ReportType.ANNUAL
-        )
-        
-        with patch.object(report_service, 'search_all_pages') as mock_search:
-            mock_search.return_value = {
-                "success": False,
-                "error": "搜索失败"
-            }
-            
-            # 行动 (Act)
-            result = await report_service.enhanced_batch_download(criteria, tmp_path)
-            
-            # 断言 (Assert)
-            assert result["success"] is False
-            assert "搜索失败" in result["error"]
-            assert result["statistics"]["total"] == 0
-    
-    @pytest.mark.asyncio
-    async def test_enhanced_batch_download_no_reports_found(self, report_service, tmp_path):
-        """测试未找到报告场景"""
-        # 安排 (Arrange)
-        criteria = FundSearchCriteria(
-            year=2024,
-            report_type=ReportType.ANNUAL
-        )
-        
-        with patch.object(report_service, 'search_all_pages') as mock_search:
-            mock_search.return_value = {
-                "success": True,
-                "data": [],
-                "pagination": {"total_pages": 0}
-            }
-            
-            # 行动 (Act)
-            result = await report_service.enhanced_batch_download(criteria, tmp_path)
-            
-            # 断言 (Assert)
-            assert result["success"] is True
-            assert "没有找到符合条件的报告" in result["message"]
-            assert result["statistics"]["total"] == 0
-    
-    @pytest.mark.asyncio
-    async def test_enhanced_batch_download_with_max_reports(self, report_service, tmp_path):
-        """测试带最大报告数限制的下载"""
-        # 安排 (Arrange)
-        criteria = FundSearchCriteria(
-            year=2024,
-            report_type=ReportType.ANNUAL
-        )
-        
-        # 模拟找到5个报告，但限制只下载3个
-        many_reports = [
-            {"uploadInfoId": f"175253734{i}", "fundCode": f"01306{i}"}
-            for i in range(5)
-        ]
-        
-        with patch.object(report_service, 'search_all_pages') as mock_search, \
-             patch.object(report_service, 'batch_download') as mock_batch_download:
-            
-            mock_search.return_value = {
-                "success": True,
-                "data": many_reports,
-                "pagination": {"total_pages": 1}
-            }
-            
-            mock_batch_download.return_value = {
-                "success": True,
-                "statistics": {
-                    "total": 3,
-                    "success": 3,
-                    "failed": 0,
-                    "duration": 5.0
-                },
-                "results": []
-            }
-            
-            # 行动 (Act)
-            result = await report_service.enhanced_batch_download(
-                criteria, tmp_path, max_reports=3
-            )
-            
-            # 断言 (Assert)
-            assert result["success"] is True
-            
-            # 验证只传递了前3个报告给batch_download
-            args, kwargs = mock_batch_download.call_args
-            limited_reports = args[0]
-            assert len(limited_reports) == 3
-            assert result["search_info"]["total_found"] == 5  # 原始找到的数量
+# TestFundReportServiceEnhancedBatchDownload 类已移除
+# enhanced_batch_download 方法已被新的任务分解架构替代
+# 请使用 DownloadTaskService 和相关的原子任务进行批量下载

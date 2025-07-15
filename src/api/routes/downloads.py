@@ -12,7 +12,7 @@ from src.services.download_task_service import DownloadTaskService, DownloadTask
 
 from src.parsers.xbrl_parser import XBRLParser
 from src.services.fund_data_service import FundDataService
-from src.tasks.download_tasks import download_fund_report_task  # Phase 5新增
+from src.tasks.download_tasks import start_download_pipeline  # Phase 3重构版本
 from pathlib import Path
 
 logger = get_logger(__name__)
@@ -79,8 +79,8 @@ async def create_download_task(
     )
     await task_service.create_task(task)
 
-    # Phase 5: 使用Celery任务替代BackgroundTasks
-    celery_task = download_fund_report_task.delay(task_id)
+    # Phase 3: 使用新的任务编排系统
+    celery_task = start_download_pipeline.delay(task_id)
 
     logger.info(
         "downloads.create_task.celery_dispatched",

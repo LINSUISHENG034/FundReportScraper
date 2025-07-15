@@ -426,6 +426,13 @@ class CSRCFundReportScraper(BaseScraper):
         except:
             return None
     
+    def get_download_url(self, upload_info_id: str) -> str:
+        """
+        获取下载URL
+        Get download URL for uploadInfoId
+        """
+        return f"{self.instance_url}?instanceid={upload_info_id}"
+    
     async def download_xbrl_content(self, upload_info_id: str) -> bytes:
         """
         下载XBRL内容

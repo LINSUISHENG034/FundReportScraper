@@ -165,7 +165,7 @@ class DownloadTaskService:
         """
         创建下载任务并将其分发到Celery
         """
-        from src.tasks.download_tasks import download_fund_report_task
+        from src.tasks.download_tasks import start_download_pipeline
         import uuid
 
         task_id = str(uuid.uuid4())
@@ -180,7 +180,7 @@ class DownloadTaskService:
         )
         await self.create_task(task)
 
-        celery_task = download_fund_report_task.delay(task_id)
+        celery_task = start_download_pipeline.delay(task_id)
         logger.info(
             "download_task_service.task_dispatched",
             task_id=task_id,
