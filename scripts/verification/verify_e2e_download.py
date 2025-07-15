@@ -26,8 +26,8 @@ POLL_INTERVAL_SECONDS = 5
 # We will search for a single fund's Q1 2025 report.
 # This provides a small, predictable, and fast test case.
 TARGET_YEAR = 2024
-TARGET_REPORT_TYPE = "FB010010"  
-TARGET_FUND_CODE = "015975"      # A known fund from test fixtures
+TARGET_REPORT_TYPE = "FB010010"
+TARGET_FUND_CODE = "015975"  # A known fund from test fixtures
 
 # --- Logging Setup ---
 logging.basicConfig(
@@ -35,6 +35,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+
 
 async def search_for_reports(client: httpx.AsyncClient) -> List[Dict[str, Any]]:
     """Step 1: Search for the target reports via the API."""
@@ -60,24 +61,28 @@ async def search_for_reports(client: httpx.AsyncClient) -> List[Dict[str, Any]]:
         reports = data["data"]
         logging.info(f"SUCCESS: Found {len(reports)} report(s) to download.")
         for report in reports:
-            logging.info(f"  - Found Report: upload_info_id={report['upload_info_id']}, name={report['fund_short_name']}")
+            logging.info(
+                f"  - Found Report: upload_info_id={report['upload_info_id']}, name={report['fund_short_name']}"
+            )
         return reports
     except httpx.HTTPStatusError as e:
-        logging.error(f"HTTP error during search: {e.response.status_code} - {e.response.text}")
+        logging.error(
+            f"HTTP error during search: {e.response.status_code} - {e.response.text}"
+        )
         return []
     except Exception as e:
         logging.error(f"An unexpected error occurred during search: {e}")
         return []
 
-async def trigger_download(client: httpx.AsyncClient, reports: List[Dict[str, Any]]) -> str:
+
+async def trigger_download(
+    client: httpx.AsyncClient, reports: List[Dict[str, Any]]
+) -> str:
     """Step 2: Trigger a download task for the found reports."""
     logging.info("STEP 2: Triggering download task...")
-    
+
     # The API now expects the full list of report objects, not just their IDs.
-    payload = {
-        "reports": reports,
-        "save_dir": str(DOWNLOAD_DIR)
-    }
+    payload = {"reports": reports, "save_dir": str(DOWNLOAD_DIR)}
     try:
         response = await client.post(f"{API_BASE_URL}/api/downloads", json=payload)
         response.raise_for_status()
@@ -86,25 +91,28 @@ async def trigger_download(client: httpx.AsyncClient, reports: List[Dict[str, An
         if not data.get("success"):
             logging.error(f"API call to trigger download failed. Response: {data}")
             return ""
-        
+
         task_id = data["task_id"]
         logging.info(f"SUCCESS: Download task created. Task ID: {task_id}")
         return task_id
     except httpx.HTTPStatusError as e:
-        logging.error(f"HTTP error during download trigger: {e.response.status_code} - {e.response.text}")
+        logging.error(
+            f"HTTP error during download trigger: {e.response.status_code} - {e.response.text}"
+        )
         return ""
     except Exception as e:
         logging.error(f"An unexpected error occurred during download trigger: {e}")
         return ""
 
+
 def verify_downloads(reports: List[Dict[str, Any]]) -> bool:
     """Step 3: Poll the download directory to verify file creation."""
     logging.info("STEP 3: Verifying downloaded files...")
-    
+
     expected_files = [
         DOWNLOAD_DIR / f"{r['fund_code']}_{r['upload_info_id']}.xbrl" for r in reports
     ]
-    
+
     logging.info("Expected files:")
     for f in expected_files:
         logging.info(f"  - {f}")
@@ -116,25 +124,32 @@ def verify_downloads(reports: List[Dict[str, Any]]) -> bool:
             if not file_path.exists():
                 all_found = False
                 break
-        
+
         if all_found:
-            logging.info("SUCCESS: All expected files have been found in the download directory.")
+            logging.info(
+                "SUCCESS: All expected files have been found in the download directory."
+            )
             return True
-        
-        logging.info(f"Verification in progress... waiting for files. Retrying in {POLL_INTERVAL_SECONDS}s.")
+
+        logging.info(
+            f"Verification in progress... waiting for files. Retrying in {POLL_INTERVAL_SECONDS}s."
+        )
         time.sleep(POLL_INTERVAL_SECONDS)
 
-    logging.error(f"FAILURE: Verification timed out after {VERIFICATION_TIMEOUT_SECONDS} seconds.")
+    logging.error(
+        f"FAILURE: Verification timed out after {VERIFICATION_TIMEOUT_SECONDS} seconds."
+    )
     logging.error("The following files were NOT found:")
     for file_path in expected_files:
         if not file_path.exists():
             logging.error(f"  - {file_path}")
     return False
 
+
 async def main():
     """Main execution function."""
     logging.info("--- Starting E2E Verification Script for Phase 4.5 ---")
-    
+
     # Ensure download directory exists
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -142,20 +157,26 @@ async def main():
         # Step 1
         reports_to_download = await search_for_reports(client)
         if not reports_to_download:
-            logging.error("Verification failed at Step 1: Could not find reports to download.")
+            logging.error(
+                "Verification failed at Step 1: Could not find reports to download."
+            )
             return
 
         # Step 2
         task_id = await trigger_download(client, reports_to_download)
         if not task_id:
-            logging.error("Verification failed at Step 2: Could not trigger download task.")
+            logging.error(
+                "Verification failed at Step 2: Could not trigger download task."
+            )
             return
-            
+
         # Step 3
         # This part is synchronous as it involves polling the file system.
         verification_success = verify_downloads(reports_to_download)
         if not verification_success:
-            logging.error("Verification failed at Step 3: Files were not downloaded correctly.")
+            logging.error(
+                "Verification failed at Step 3: Files were not downloaded correctly."
+            )
             return
 
     logging.info("----------------------------------------------------")

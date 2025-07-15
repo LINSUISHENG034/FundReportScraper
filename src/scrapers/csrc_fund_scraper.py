@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 
 from src.core.config import settings
 from src.core.logging import get_logger
-from src.core.fund_search_parameters import FundSearchCriteria, ReportType, FundType
+from src.core.fund_search_parameters import FundSearchCriteria, ReportType
 from aiohttp import ClientSession
 from src.scrapers.base import BaseScraper, ParseError
 
@@ -23,18 +23,18 @@ class CSRCFundReportScraper(BaseScraper):
     按照文档指导的证监会基金报告爬虫
     CSRC fund report scraper following documentation guidance
     """
-    
+
     def __init__(self, session: Optional[ClientSession] = None):
         super().__init__(base_url=settings.target.base_url, session=session)
         self.search_url = settings.target.search_url
         self.instance_url = settings.target.instance_url
-        
+
         logger.info(
             "csrc_scraper.initialized",
             search_url=self.search_url,
-            instance_url=self.instance_url
+            instance_url=self.instance_url,
         )
-    
+
     async def get_report_list(
         self,
         year: int,
@@ -46,79 +46,80 @@ class CSRCFundReportScraper(BaseScraper):
         fund_code: Optional[str] = None,
         fund_short_name: Optional[str] = None,
         start_upload_date: Optional[str] = None,
-        end_upload_date: Optional[str] = None
+        end_upload_date: Optional[str] = None,
     ) -> Tuple[List[Dict], bool]:
         """
         按照文档指导获取基金报告列表
         Get fund report list following documentation guidance
-        
+
         Args:
             year: 报告年份
             report_type: 报告类型
             page: 页码 (1-based)
             page_size: 每页数量
-            
+
         Returns:
             Tuple of (report_list, has_next_page)
         """
         bound_logger = logger.bind(
-            year=year,
-            report_type=report_type.value,
-            page=page,
-            page_size=page_size
+            year=year, report_type=report_type.value, page=page, page_size=page_size
         )
-        
+
         bound_logger.info("csrc_scraper.get_report_list.start")
-        
+
         try:
             # 按照验证结果构建参数，传递所有6个搜索参数
             ao_data = self._build_ao_data(
-                year, report_type, page, page_size, fund_type,
-                fund_company_short_name, fund_code, fund_short_name,
-                start_upload_date, end_upload_date
+                year,
+                report_type,
+                page,
+                page_size,
+                fund_type,
+                fund_company_short_name,
+                fund_code,
+                fund_short_name,
+                start_upload_date,
+                end_upload_date,
             )
-            
+
             # 构建查询字符串
             ao_data_json = json.dumps(ao_data)
             timestamp = int(time.time() * 1000)
-            
-            params = {
-                "aoData": ao_data_json,
-                "_": timestamp
-            }
-            
+
+            params = {"aoData": ao_data_json, "_": timestamp}
+
             # 发送GET请求（按照文档指导）
             url = f"{self.search_url}?{urlencode(params)}"
-            
+
             response = await self.get(url)
-            
+
             # 解析响应
             data = await response.json()
-            
+
             # 提取报告信息
             reports = []
             for item in data.get("aaData", []):
                 report = self._parse_report_item(item)
                 if report:
                     reports.append(report)
-            
+
             total_count = data.get("iTotalRecords", 0)
             has_next_page = (page * page_size) < total_count
-            
+
             bound_logger.info(
                 "csrc_scraper.get_report_list.success",
                 reports_found=len(reports),
                 total_count=total_count,
-                has_next_page=has_next_page
+                has_next_page=has_next_page,
             )
-            
+
             return reports, has_next_page
-            
+
         except Exception as e:
             bound_logger.error(
                 "csrc_scraper.get_report_list.error",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             raise ParseError(f"获取报告列表失败: {e}")
 
@@ -130,7 +131,7 @@ class CSRCFundReportScraper(BaseScraper):
         bound_logger = logger.bind(
             criteria=criteria.get_description(),
             page=criteria.page,
-            page_size=criteria.page_size
+            page_size=criteria.page_size,
         )
 
         bound_logger.info("csrc_scraper.search_reports.start")
@@ -143,42 +144,41 @@ class CSRCFundReportScraper(BaseScraper):
             ao_data_json = json.dumps(ao_data)
             timestamp = int(time.time() * 1000)
 
-            params = {
-                'aoData': ao_data_json,
-                '_': timestamp
-            }
+            params = {"aoData": ao_data_json, "_": timestamp}
 
             # 发送请求
             response = await self.get(self.search_url, params=params)
-            
+
             if response.status == 200:
                 # 强制解析JSON，忽略Content-Type（基于验证结果）
                 try:
                     # 先获取文本，然后手动解析JSON（参考MVP脚本的成功做法）
                     text = await response.text()
                     data = json.loads(text)
-                    
+
                     # 关键修复：调用 _parse_report_item 来处理每一条记录
                     parsed_reports = []
-                    for item in data.get('aaData', []):
+                    for item in data.get("aaData", []):
                         report = self._parse_report_item(item)
                         if report:
                             parsed_reports.append(report)
 
                     bound_logger.info(
                         "csrc_scraper.search_reports.success",
-                        total_records=data.get('iTotalRecords', 0),
-                        returned_count=len(parsed_reports)
+                        total_records=data.get("iTotalRecords", 0),
+                        returned_count=len(parsed_reports),
                     )
 
                     return parsed_reports
 
                 except Exception as json_error:
-                    response_text = await response.text() if 'text' not in locals() else text
+                    response_text = (
+                        await response.text() if "text" not in locals() else text
+                    )
                     bound_logger.error(
                         "csrc_scraper.search_reports.json_parse_error",
                         error=str(json_error),
-                        response_text=response_text[:200]
+                        response_text=response_text[:200],
                     )
                     raise ParseError(f"JSON解析失败: {json_error}")
             else:
@@ -186,7 +186,7 @@ class CSRCFundReportScraper(BaseScraper):
                 bound_logger.error(
                     "csrc_scraper.search_reports.http_error",
                     status_code=response.status,
-                    response_text=response_text[:200]
+                    response_text=response_text[:200],
                 )
                 raise ParseError(f"HTTP请求失败: {response.status}")
 
@@ -194,7 +194,7 @@ class CSRCFundReportScraper(BaseScraper):
             bound_logger.error(
                 "csrc_scraper.search_reports.error",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             raise ParseError(f"搜索报告失败: {e}")
 
@@ -204,10 +204,10 @@ class CSRCFundReportScraper(BaseScraper):
         Implementation of abstract scrape method
         """
         # 从kwargs中提取参数
-        year = kwargs.get('year', 2024)
-        report_type = kwargs.get('report_type', ReportType.ANNUAL)
-        page = kwargs.get('page', 1)
-        page_size = kwargs.get('page_size', 20)
+        year = kwargs.get("year", 2024)
+        report_type = kwargs.get("report_type", ReportType.ANNUAL)
+        page = kwargs.get("page", 1)
+        page_size = kwargs.get("page_size", 20)
 
         # 调用get_report_list方法
         reports, has_more = await self.get_report_list(
@@ -215,7 +215,11 @@ class CSRCFundReportScraper(BaseScraper):
             report_type=report_type,
             page=page,
             page_size=page_size,
-            **{k: v for k, v in kwargs.items() if k not in ['year', 'report_type', 'page', 'page_size']}
+            **{
+                k: v
+                for k, v in kwargs.items()
+                if k not in ["year", "report_type", "page", "page_size"]
+            },
         )
 
         return reports
@@ -231,7 +235,7 @@ class CSRCFundReportScraper(BaseScraper):
         fund_code: Optional[str] = None,
         fund_short_name: Optional[str] = None,
         start_upload_date: Optional[str] = None,
-        end_upload_date: Optional[str] = None
+        end_upload_date: Optional[str] = None,
     ) -> List[Dict]:
         """
         按照验证结果构建aoData参数
@@ -239,15 +243,7 @@ class CSRCFundReportScraper(BaseScraper):
         """
         display_start = (page - 1) * page_size
 
-        # 定义报告类型映射
-        report_type_mapping = {
-            ReportType.QUARTERLY_Q1: "FB030010",
-            ReportType.QUARTERLY_Q2: "FB030020",
-            ReportType.QUARTERLY_Q3: "FB030030",
-            ReportType.SEMI_ANNUAL: "FB020010",
-            ReportType.ANNUAL: "FB010010",
-            ReportType.FUND_PROFILE: "FA010070",
-        }
+        # 报告类型映射已移至ReportType枚举中
 
         # 直接使用报告类型枚举值
         if isinstance(report_type, ReportType):
@@ -257,7 +253,9 @@ class CSRCFundReportScraper(BaseScraper):
             report_type_code = str(report_type)
 
         # 处理特殊情况：基金产品资料概要需要空的reportYear
-        report_year = "" if report_type_code == ReportType.FUND_PROFILE.value else str(year)
+        report_year = (
+            "" if report_type_code == ReportType.FUND_PROFILE.value else str(year)
+        )
 
         # 按照验证的实现构建完整参数列表
         ao_data = [
@@ -279,7 +277,7 @@ class CSRCFundReportScraper(BaseScraper):
             {"name": "fundCode", "value": fund_code or ""},
             {"name": "fundShortName", "value": fund_short_name or ""},
             {"name": "startUploadDate", "value": start_upload_date or ""},
-            {"name": "endUploadDate", "value": end_upload_date or ""}
+            {"name": "endUploadDate", "value": end_upload_date or ""},
         ]
 
         logger.debug(
@@ -287,11 +285,11 @@ class CSRCFundReportScraper(BaseScraper):
             ao_data=ao_data,
             report_type_code=report_type_code,
             fund_type=fund_type,
-            year=year
+            year=year,
         )
 
         return ao_data
-    
+
     def _parse_report_item(self, item) -> Optional[Dict]:
         """
         解析单个报告项目
@@ -311,7 +309,7 @@ class CSRCFundReportScraper(BaseScraper):
                     logger.warning(
                         "csrc_scraper.parse_item.missing_critical_fields",
                         item=item,
-                        reason="uploadInfoId or fundCode is missing or empty."
+                        reason="uploadInfoId or fundCode is missing or empty.",
                     )
                     return None
 
@@ -328,14 +326,14 @@ class CSRCFundReportScraper(BaseScraper):
                     "fund_id": item.get("fundId"),
                     "classification_code": item.get("classificationCode"),
                     "fund_sign": item.get("fundSign"),
-                    "raw_data": item
+                    "raw_data": item,
                 }
 
                 logger.debug(
                     "csrc_scraper.parse_item.success",
                     upload_info_id=report["upload_info_id"],
                     fund_code=report["fund_code"],
-                    fund_name=report["fund_short_name"]
+                    fund_name=report["fund_short_name"],
                 )
 
                 return report
@@ -346,7 +344,7 @@ class CSRCFundReportScraper(BaseScraper):
                     logger.warning(
                         "csrc_scraper.parse_item.insufficient_data",
                         item_length=len(item),
-                        item_preview=str(item)[:100]
+                        item_preview=str(item)[:100],
                     )
                     return None
 
@@ -357,13 +355,19 @@ class CSRCFundReportScraper(BaseScraper):
                     "fund_short_name": self._clean_text(str(item[2])),
                     "organ_name": self._clean_text(str(item[3])),
                     "report_year": str(item[4]) if len(item) > 4 else None,
-                    "upload_date": self._parse_date(str(item[5])) if len(item) > 5 else None,
-                    "report_send_date": self._parse_date(str(item[6])) if len(item) > 6 else None,
-                    "report_desp": self._clean_text(str(item[7])) if len(item) > 7 else None,
+                    "upload_date": self._parse_date(str(item[5]))
+                    if len(item) > 5
+                    else None,
+                    "report_send_date": self._parse_date(str(item[6]))
+                    if len(item) > 6
+                    else None,
+                    "report_desp": self._clean_text(str(item[7]))
+                    if len(item) > 7
+                    else None,
                     "fund_id": str(item[8]) if len(item) > 8 else None,
                     "classification_code": str(item[9]) if len(item) > 9 else None,
                     "fund_sign": str(item[10]) if len(item) > 10 else None,
-                    "raw_data": item
+                    "raw_data": item,
                 }
 
                 return report
@@ -372,81 +376,84 @@ class CSRCFundReportScraper(BaseScraper):
                 logger.warning(
                     "csrc_scraper.parse_item.unknown_format",
                     item_type=type(item),
-                    item=str(item)[:200]
+                    item=str(item)[:200],
                 )
                 return None
 
         except Exception as e:
             logger.warning(
-                "csrc_scraper.parse_item.error",
-                error=str(e),
-                item=str(item)[:200]
+                "csrc_scraper.parse_item.error", error=str(e), item=str(item)[:200]
             )
             return None
-    
+
     def _extract_upload_info_id(self, text: str) -> Optional[str]:
         """提取uploadInfoId"""
         import re
+
         # 查找链接中的instanceid参数
         match = re.search(r'instanceid=([^&"\']+)', text)
         if match:
             return match.group(1)
-        
+
         # 或者直接查找数字ID
-        match = re.search(r'\b(\d{8,})\b', text)
+        match = re.search(r"\b(\d{8,})\b", text)
         return match.group(1) if match else None
-    
+
     def _extract_fund_code(self, text: str) -> Optional[str]:
         """提取基金代码"""
         import re
-        match = re.search(r'\b(\d{6})\b', text)
+
+        match = re.search(r"\b(\d{6})\b", text)
         return match.group(1) if match else None
 
     def _extract_fund_code_from_name(self, fund_name: str) -> Optional[str]:
         """从基金名称中提取基金代码"""
         import re
+
         if not fund_name:
             return None
         # 尝试从基金名称中提取6位数字代码
-        match = re.search(r'\((\d{6})\)', fund_name)
+        match = re.search(r"\((\d{6})\)", fund_name)
         if match:
             return match.group(1)
         # 尝试其他格式
-        match = re.search(r'(\d{6})', fund_name)
+        match = re.search(r"(\d{6})", fund_name)
         return match.group(1) if match else None
-    
+
     def _clean_text(self, text: str) -> str:
         """清理文本"""
         import re
+
         # 移除HTML标签
-        text = re.sub(r'<[^>]+>', '', text)
+        text = re.sub(r"<[^>]+>", "", text)
         # 清理空白字符
         return text.strip()
-    
+
     def _parse_date(self, date_str: str) -> Optional[str]:
         """解析日期字符串"""
         try:
             # 尝试多种日期格式
             import re
-            date_match = re.search(r'(\d{4}-\d{2}-\d{2})', date_str)
+
+            date_match = re.search(r"(\d{4}-\d{2}-\d{2})", date_str)
             if date_match:
                 return date_match.group(1)
-            
-            date_match = re.search(r'(\d{4}/\d{2}/\d{2})', date_str)
+
+            date_match = re.search(r"(\d{4}/\d{2}/\d{2})", date_str)
             if date_match:
-                return date_match.group(1).replace('/', '-')
-            
+                return date_match.group(1).replace("/", "-")
+
             return None
-        except:
+        except Exception:
             return None
-    
+
     def get_download_url(self, upload_info_id: str) -> str:
         """
         获取下载URL
         Get download URL for uploadInfoId
         """
         return f"{self.instance_url}?instanceid={upload_info_id}"
-    
+
     async def download_xbrl_content(self, upload_info_id: str) -> bytes:
         """
         下载XBRL内容
@@ -458,10 +465,7 @@ class CSRCFundReportScraper(BaseScraper):
         try:
             url = f"{self.instance_url}?instanceid={upload_info_id}"
 
-            bound_logger.info(
-                "csrc_scraper.download_xbrl.request_url",
-                url=url
-            )
+            bound_logger.info("csrc_scraper.download_xbrl.request_url", url=url)
 
             # 使用专门的下载会话，确保重定向处理正确
             if not self.session:
@@ -476,7 +480,7 @@ class CSRCFundReportScraper(BaseScraper):
                 content_type=response.headers.get("content-type"),
                 content_length=response.headers.get("content-length"),
                 final_url=str(response.url),
-                is_redirect=str(response.url) != url
+                is_redirect=str(response.url) != url,
             )
 
             # 检查响应状态
@@ -484,7 +488,7 @@ class CSRCFundReportScraper(BaseScraper):
                 bound_logger.error(
                     "csrc_scraper.download_xbrl.http_error",
                     status_code=response.status_code,
-                    response_text=response.text[:200]
+                    response_text=response.text[:200],
                 )
                 raise Exception(f"HTTP {response.status_code}: {response.text[:100]}")
 
@@ -495,26 +499,26 @@ class CSRCFundReportScraper(BaseScraper):
                 bound_logger.warning(
                     "csrc_scraper.download_xbrl.small_content",
                     content_size=len(content),
-                    content_preview=content[:50]
+                    content_preview=content[:50],
                 )
 
             # 检查内容类型
             content_type = response.headers.get("content-type", "").lower()
             if "xml" not in content_type and "xbrl" not in content_type:
                 # 检查内容是否以XML开头
-                content_str = content.decode('utf-8', errors='ignore')[:200]
-                if not content_str.strip().startswith('<?xml'):
+                content_str = content.decode("utf-8", errors="ignore")[:200]
+                if not content_str.strip().startswith("<?xml"):
                     bound_logger.warning(
                         "csrc_scraper.download_xbrl.unexpected_content_type",
                         content_type=content_type,
-                        content_preview=content_str[:100]
+                        content_preview=content_str[:100],
                     )
 
             bound_logger.info(
                 "csrc_scraper.download_xbrl.success",
                 content_size=len(content),
                 content_type=content_type,
-                final_url=str(response.url)
+                final_url=str(response.url),
             )
 
             return content
@@ -523,16 +527,12 @@ class CSRCFundReportScraper(BaseScraper):
             bound_logger.error(
                 "csrc_scraper.download_xbrl.error",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             raise
-    
+
     async def download_report_file(
-        self,
-        file_url: str,
-        fund_code: str,
-        report_date: str,
-        report_type: ReportType
+        self, file_url: str, fund_code: str, report_date: str, report_type: ReportType
     ) -> bytes:
         """
         兼容原有接口的下载方法
@@ -545,12 +545,9 @@ class CSRCFundReportScraper(BaseScraper):
             # 否则使用原有的直接下载方法
             response = await self.get(file_url)
             return response.content
-    
+
     async def get_all_reports(
-        self,
-        year: int,
-        report_type: ReportType,
-        max_pages: Optional[int] = None
+        self, year: int, report_type: ReportType, max_pages: Optional[int] = None
     ) -> List[Dict]:
         """
         获取所有报告（分页获取）
@@ -560,59 +557,54 @@ class CSRCFundReportScraper(BaseScraper):
             "csrc_scraper.get_all_reports.start",
             year=year,
             report_type=report_type.value,
-            max_pages=max_pages
+            max_pages=max_pages,
         )
-        
+
         all_reports = []
         page = 1
-        
+
         while True:
             if max_pages and page > max_pages:
                 logger.info(
                     "csrc_scraper.get_all_reports.max_pages_reached",
                     page=page,
-                    max_pages=max_pages
+                    max_pages=max_pages,
                 )
                 break
-            
+
             try:
                 reports, has_next = await self.get_report_list(
-                    year=year,
-                    report_type=report_type,
-                    page=page,
-                    page_size=100
+                    year=year, report_type=report_type, page=page, page_size=100
                 )
-                
+
                 all_reports.extend(reports)
-                
+
                 logger.info(
                     "csrc_scraper.get_all_reports.page_complete",
                     page=page,
                     page_reports=len(reports),
                     total_reports=len(all_reports),
-                    has_next=has_next
+                    has_next=has_next,
                 )
-                
+
                 if not has_next:
                     break
-                
+
                 page += 1
-                
+
                 # 添加延迟避免请求过快
                 await self.rate_limiter.acquire()
-                
+
             except Exception as e:
                 logger.error(
-                    "csrc_scraper.get_all_reports.page_error",
-                    page=page,
-                    error=str(e)
+                    "csrc_scraper.get_all_reports.page_error", page=page, error=str(e)
                 )
                 break
-        
+
         logger.info(
             "csrc_scraper.get_all_reports.complete",
             total_reports=len(all_reports),
-            total_pages=page - 1
+            total_pages=page - 1,
         )
-        
+
         return all_reports

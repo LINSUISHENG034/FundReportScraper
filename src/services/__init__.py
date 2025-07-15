@@ -2,6 +2,4 @@
 
 from .fund_report_service import FundReportService
 
-__all__ = [
-    "FundReportService"
-]
+__all__ = ["FundReportService"]

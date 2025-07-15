@@ -9,13 +9,10 @@ from typing import AsyncGenerator, Generator
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from fastapi import FastAPI
 
 from src.core.config import get_settings
 from src.core.logging import configure_logging
-from src.main import create_app
 
 
 def pytest_configure(config):
@@ -42,8 +39,9 @@ def configure_test_logging() -> None:
 async def app() -> AsyncGenerator[FastAPI, None]:
     """Create a new application for testing."""
     from src.main import create_app
+
     app = create_app()
-    
+
     # Manually trigger lifespan startup
     async with app.router.lifespan_context(app):
         yield app
@@ -77,11 +75,14 @@ def sample_xbrl_content() -> str:
             <instant>2023-12-31</instant>
         </period>
     </context>
-    
+
     <!-- Asset allocation data -->
-    <StockInvestments contextRef="AsOf2023-12-31" unitRef="CNY">1000000000</StockInvestments>
-    <BondInvestments contextRef="AsOf2023-12-31" unitRef="CNY">500000000</BondInvestments>
-    <CashAndEquivalents contextRef="AsOf2023-12-31" unitRef="CNY">100000000</CashAndEquivalents>
+    <StockInvestments contextRef="AsOf2023-12-31"
+                      unitRef="CNY">1000000000</StockInvestments>
+    <BondInvestments contextRef="AsOf2023-12-31"
+                     unitRef="CNY">500000000</BondInvestments>
+    <CashAndEquivalents contextRef="AsOf2023-12-31"
+                        unitRef="CNY">100000000</CashAndEquivalents>
 </xbrl>"""
 
 
@@ -102,16 +103,21 @@ def sample_fund_data() -> dict:
 
 class MockResponse:
     """Mock HTTP response for testing."""
-    
-    def __init__(self, status_code: int = 200, json_data: dict = None, content: bytes = b""):
+
+    def __init__(
+        self,
+        status_code: int = 200,
+        json_data: dict = None,
+        content: bytes = b"",
+    ):
         self.status_code = status_code
         self._json_data = json_data or {}
         self.content = content
         self.headers = {"content-type": "application/json"}
-    
+
     def json(self):
         return self._json_data
-    
+
     def raise_for_status(self):
         if self.status_code >= 400:
             raise Exception(f"HTTP {self.status_code}")

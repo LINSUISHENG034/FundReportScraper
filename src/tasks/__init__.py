@@ -7,7 +7,7 @@ from .download_tasks import (
     parse_report_chain,
     save_report_chain,
     start_download_pipeline,
-    finalize_batch_download
+    finalize_batch_download,
 )
 
 __all__ = [
@@ -16,7 +16,7 @@ __all__ = [
     "parse_report_chain",
     "save_report_chain",
     "start_download_pipeline",
-    "finalize_batch_download"
+    "finalize_batch_download",
 ]
 
 # 其他任务模块暂时注释掉，避免导入错误

@@ -32,28 +32,32 @@ def create_app(http_client: aiohttp.ClientSession = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         """Application lifespan management."""
         logger.info("application.startup")
-        
+
         # Create aiohttp client
         # 关键修复：在Session级别添加User-Agent，与Celery任务保持一致
         app.state.http_client = http_client or aiohttp.ClientSession(
-            headers={'User-Agent': settings.scraper.user_agent}
+            headers={"User-Agent": settings.scraper.user_agent}
         )
         logger.info("application.http_client.created")
 
         # Create services
         scraper = CSRCFundReportScraper(session=app.state.http_client)
         from src.services.downloader import Downloader
+
         downloader = Downloader()  # Downloader creates its own session
-        app.state.fund_report_service = FundReportService(scraper=scraper, downloader=downloader)
+        app.state.fund_report_service = FundReportService(
+            scraper=scraper, downloader=downloader
+        )
 
         logger.info("application.services.created")
-        
+
         yield
-        
+
         # Close aiohttp client
         await app.state.http_client.close()
         logger.info("application.http_client.closed")
         logger.info("application.shutdown")
+
     """Create and configure the FastAPI application."""
     app = FastAPI(
         title="基金报告自动化采集与分析平台 API",
@@ -63,7 +67,7 @@ def create_app(http_client: aiohttp.ClientSession = None) -> FastAPI:
         redoc_url="/redoc",
         openapi_url="/openapi.json",
         lifespan=lifespan,
-        debug=settings.debug
+        debug=settings.debug,
     )
 
     # Add CORS middleware
@@ -101,10 +105,7 @@ def create_app(http_client: aiohttp.ClientSession = None) -> FastAPI:
             status=status,
             timestamp=datetime.utcnow(),
             version=settings.version,
-            services={
-                "database": db_status,
-                "api": "healthy"
-            }
+            services={"database": db_status, "api": "healthy"},
         )
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -143,24 +144,21 @@ def create_app(http_client: aiohttp.ClientSession = None) -> FastAPI:
         </body>
         </html>
         """
+
     return app
+
 
 app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
-    
-    logger.info(
-        "application.starting",
-        host="0.0.0.0",
-        port=8000,
-        debug=settings.debug
-    )
-    
+
+    logger.info("application.starting", host="0.0.0.0", port=8000, debug=settings.debug)
+
     uvicorn.run(
         "src.main:app",
         host="0.0.0.0",
         port=8000,
         reload=settings.debug,
-        log_config=None  # Use our custom logging
+        log_config=None,  # Use our custom logging
     )

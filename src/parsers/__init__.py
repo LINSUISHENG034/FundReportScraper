@@ -1,9 +1,5 @@
 """Parsers package initialization."""
 
-from .xbrl_parser import (
-    XBRLParser, ParsedFundData
-)
+from .xbrl_parser import XBRLParser, ParsedFundData
 
-__all__ = [
-    "XBRLParser", "ParsedFundData"
-]
+__all__ = ["XBRLParser", "ParsedFundData"]

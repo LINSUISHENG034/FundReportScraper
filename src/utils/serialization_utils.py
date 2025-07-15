@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Any, Dict
 from sqlalchemy.orm import class_mapper
 
+
 def sqlalchemy_to_dict(obj: Any) -> Dict[str, Any]:
     """
     将一个SQLAlchemy ORM对象递归地转换为一个可序列化为JSON的字典。
@@ -14,7 +15,7 @@ def sqlalchemy_to_dict(obj: Any) -> Dict[str, Any]:
     """
     if obj is None:
         return None
-    
+
     data = {}
     # 遍历所有列
     for column in class_mapper(obj.__class__).columns:
@@ -26,7 +27,7 @@ def sqlalchemy_to_dict(obj: Any) -> Dict[str, Any]:
             data[column.name] = float(value)
         else:
             data[column.name] = value
-            
+
     # 递归处理关联对象
     for relationship in class_mapper(obj.__class__).relationships:
         # 检查关联属性是否存在，避免在未加载时触发查询
@@ -34,8 +35,10 @@ def sqlalchemy_to_dict(obj: Any) -> Dict[str, Any]:
             related_obj = getattr(obj, relationship.key)
             if related_obj is not None:
                 if relationship.uselist:
-                    data[relationship.key] = [sqlalchemy_to_dict(o) for o in related_obj]
+                    data[relationship.key] = [
+                        sqlalchemy_to_dict(o) for o in related_obj
+                    ]
                 else:
                     data[relationship.key] = sqlalchemy_to_dict(related_obj)
-                
+
     return data

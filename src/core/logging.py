@@ -1,94 +1,105 @@
-"""
-Structured logging configuration using structlog.
-强制要求：所有日志必须使用structlog，禁止使用print()语句。
-"""
-
+# src/core/logging.py
 import logging
-import logging.handlers
+import logging.config
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 from structlog.types import Processor
 
+from src.core.config import settings
 
-def add_app_context(logger: Any, method_name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """Add application context to log entries."""
+
+# --- Custom Processors ---
+def add_app_context(logger: Any, method_name: str, event_dict: dict) -> dict:
+    """Add application context to all log entries."""
     event_dict["app"] = "fund-report-scraper"
-    event_dict["version"] = "0.1.0"
+    event_dict["version"] = settings.project_version
     return event_dict
 
 
-from src.core.config import settings
-
-def configure_logging(log_level: str = settings.logging.level) -> None:
+def configure_logging(log_level: str = settings.logging.level):
     """
-    Configure structured logging with JSON output.
-    
-    Args:
-        
+    Configure structured logging for the entire application.
+    - Logs are sent to a rotating file in JSON format.
+    - Logs are also sent to the console with human-readable, colored output.
     """
-    # Configure structlog processors
     log_level = log_level.upper()
-    json_logs = settings.logging.json_format
     log_dir = Path(settings.logging.log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "app.log"
 
-    # Configure structlog processors
-    processors: list[Processor] = [
+    # Define shared processors for all logs
+    shared_processors: list[Processor] = [
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
-        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
-        add_app_context,
         structlog.processors.format_exc_info,
+        add_app_context,
     ]
 
-    if json_logs:
-        processors.append(structlog.processors.JSONRenderer())
-    else:
-        processors.append(structlog.dev.ConsoleRenderer(colors=True))
+    # Configure the standard library logging foundation
+    logging.config.dictConfig(
+        {
+            "version": 1,
+            "disable_existing_loggers": False,  # Keep third-party loggers
+            "formatters": {
+                "json": {
+                    "()": structlog.stdlib.ProcessorFormatter,
+                    "processor": structlog.processors.JSONRenderer(),
+                    "foreign_pre_chain": shared_processors,
+                },
+                "console": {
+                    "()": structlog.stdlib.ProcessorFormatter,
+                    "processor": structlog.dev.ConsoleRenderer(colors=True),
+                    "foreign_pre_chain": shared_processors,
+                },
+            },
+            "handlers": {
+                "file": {
+                    "class": "logging.handlers.TimedRotatingFileHandler",
+                    "filename": log_dir / "app.log",
+                    "when": "D",
+                    "interval": 1,
+                    "backupCount": 7,
+                    "formatter": "json",
+                },
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "console",
+                    "stream": sys.stdout,
+                },
+            },
+            "loggers": {
+                # Configure our application's logger
+                "src": {
+                    "handlers": ["console", "file"],
+                    "level": log_level,
+                    "propagate": False,  # Do not pass logs to the root logger
+                },
+            },
+        }
+    )
 
-    # Setup handlers
-    handler = logging.handlers.TimedRotatingFileHandler(log_file, when="D", interval=1, backupCount=7)
-    handler.setFormatter(logging.Formatter("%(message)s"))
-
-    # Configure standard library logging to use this handler
-    root_logger = logging.getLogger()
-    root_logger.addHandler(handler)
-    root_logger.setLevel(log_level)
-    
-    # Configure structlog
+    # Configure structlog to wrap the standard library logging
     structlog.configure(
-        processors=processors,
-        wrapper_class=structlog.stdlib.BoundLogger,
+        processors=[
+            structlog.stdlib.filter_by_level,
+            *shared_processors,
+            structlog.stdlib.PositionalArgumentsFormatter(),
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
         logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
-    
-    # Configure standard library logging
 
 
-
-def get_logger(name: str = "") -> structlog.stdlib.BoundLogger:
+def get_logger(name: str) -> Any:
     """
-    Get a structured logger instance.
-    
-    Args:
-        name: Logger name (usually __name__)
-        
-    Returns:
-        Configured structured logger
-        
-    Example:
-        >>> log = get_logger(__name__)
-        >>> log = log.bind(task_id="abc-123", fund_code="000001")
-        >>> log.info("task.started", report_type="ANNUAL")
+    Get a pre-configured structlog logger.
+    The name should correspond to the logger configured in `logging.config.dictConfig`.
+    Using `__name__` is standard practice.
     """
     return structlog.get_logger(name)
-
-
-# Pre-configured logger instance
-logger = get_logger("fund_scraper")

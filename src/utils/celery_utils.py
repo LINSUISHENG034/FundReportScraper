@@ -14,12 +14,12 @@ def run_async_task(async_func: Callable[..., Coroutine], *args, **kwargs) -> Any
     """
     在gevent worker中运行异步函数
     Run async function in gevent worker context.
-    
+
     Args:
         async_func: 异步函数
         *args: 位置参数
         **kwargs: 关键字参数
-        
+
     Returns:
         异步函数的返回值
     """
@@ -41,12 +41,13 @@ def get_async_result(task_id: str) -> AsyncResult:
     """
     获取Celery任务的AsyncResult对象
     Get AsyncResult object for a Celery task.
-    
+
     Args:
         task_id: Celery任务ID
-        
+
     Returns:
         AsyncResult对象
     """
     from src.core.celery_app import app
+
     return AsyncResult(task_id, app=app)
