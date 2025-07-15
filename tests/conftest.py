@@ -11,6 +11,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from fastapi import FastAPI
 
 from src.core.config import get_settings
 from src.core.logging import configure_logging
@@ -37,15 +38,20 @@ def configure_test_logging() -> None:
     configure_logging(log_level="DEBUG")
 
 
-@pytest.fixture(scope="session")
-def app(client: AsyncClient):
+@pytest_asyncio.fixture(scope="function")
+async def app() -> AsyncGenerator[FastAPI, None]:
     """Create a new application for testing."""
-    return create_app(http_client=client)
+    from src.main import create_app
+    app = create_app()
+    
+    # Manually trigger lifespan startup
+    async with app.router.lifespan_context(app):
+        yield app
 
 
 @pytest_asyncio.fixture(scope="function")
 async def client(app) -> AsyncGenerator[AsyncClient, None]:
-    """Create an async client for testing the application."""
+    """Create a test client for testing the application."""
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
 

@@ -27,30 +27,30 @@ configure_logging()
 logger = get_logger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan management."""
-    logger.info("application.startup")
-    
-    # Create httpx client
-    app.state.http_client = http_client or httpx.AsyncClient()
-    logger.info("application.http_client.created")
-
-    # Create services
-    scraper = CSRCFundReportScraper(session=app.state.http_client)
-    app.state.fund_report_service = FundReportService(scraper=scraper)
-    app.state.download_task_service = DownloadTaskService()
-    logger.info("application.services.created")
-    
-    yield
-    
-    # Close httpx client
-    await app.state.http_client.aclose()
-    logger.info("application.http_client.closed")
-    logger.info("application.shutdown")
-
-
 def create_app(http_client: httpx.AsyncClient = None) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """Application lifespan management."""
+        logger.info("application.startup")
+        
+        # Create httpx client
+        app.state.http_client = http_client or httpx.AsyncClient()
+        logger.info("application.http_client.created")
+
+        # Create services
+        scraper = CSRCFundReportScraper(session=app.state.http_client)
+        from src.services.downloader import Downloader
+        downloader = Downloader(http_client=app.state.http_client)
+        app.state.fund_report_service = FundReportService(scraper=scraper, downloader=downloader)
+        app.state.download_task_service = DownloadTaskService()
+        logger.info("application.services.created")
+        
+        yield
+        
+        # Close httpx client
+        await app.state.http_client.aclose()
+        logger.info("application.http_client.closed")
+        logger.info("application.shutdown")
     """Create and configure the FastAPI application."""
     app = FastAPI(
         title="基金报告自动化采集与分析平台 API",
