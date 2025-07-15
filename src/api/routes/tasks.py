@@ -6,7 +6,7 @@ from celery.result import AsyncResult
 from src.core.celery_app import app as celery_app
 from src.core.logging import get_logger
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
 logger = get_logger(__name__)
 
 @router.get("/tasks/{task_id}/status", tags=["Tasks Status"])
@@ -32,7 +32,12 @@ def get_task_status(task_id: str):
         if task_result.successful():
             bound_logger.info("task.status.success")
             # .get() retrieves the final return value of the task
-            response_data["result"] = task_result.get()
+            task_return_value = task_result.get()
+            response_data["result"] = task_return_value
+            
+            # If this is a start_download_pipeline task, also return the chord_task_id
+            if isinstance(task_return_value, dict) and "chord_task_id" in task_return_value:
+                response_data["chord_task_id"] = task_return_value["chord_task_id"]
         elif task_result.failed():
             bound_logger.error("task.status.failed", reason=str(task_result.info))
             response_data["error_info"] = str(task_result.info)

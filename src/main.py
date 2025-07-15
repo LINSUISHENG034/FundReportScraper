@@ -80,10 +80,11 @@ def create_app(http_client: aiohttp.ClientSession = None) -> FastAPI:
     )
 
     # 导入路由模块
-    from src.api.routes import reports, downloads
+    from src.api.routes import reports, downloads, tasks
 
     app.include_router(reports.router, tags=["报告搜索"])
     app.include_router(downloads.router, tags=["下载任务"])
+    app.include_router(tasks.router, tags=["任务状态"])
 
     class HealthResponse(BaseModel):
         status: str

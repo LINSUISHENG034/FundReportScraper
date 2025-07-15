@@ -28,7 +28,7 @@ class DownloadTaskCreateRequest(BaseModel):
 class DownloadTaskCreateResponse(BaseModel):
     success: bool
     message: str
-    task_id: str
+    task_id: str # This will be the ID of the entrypoint task to poll.
 
 
 class ProgressInfo(BaseModel):
@@ -71,22 +71,33 @@ def get_fund_report_service(request: Request) -> FundReportService:
 async def create_download_task(
     request: DownloadTaskCreateRequest,
 ) -> DownloadTaskCreateResponse:
-    task_id = str(uuid.uuid4())
+    """
+    Creates and dispatches a download pipeline task to Celery.
+    Returns the entrypoint task ID for the client to poll.
+    """
+    # This is the high-level task ID for the entire batch operation.
+    batch_task_id = str(uuid.uuid4())
 
-    # Phase 4.5: 直接将报告列表和保存路径传递给Celery任务
-    celery_task = start_download_pipeline.delay(
-        task_id=task_id, reports_to_process=request.reports, save_dir=request.save_dir
+    # Dispatch the orchestrator task. Its result will contain the chord_task_id.
+    orchestrator_task = start_download_pipeline.delay(
+        task_id=batch_task_id, 
+        reports_to_process=request.reports, 
+        save_dir=request.save_dir
     )
 
     logger.info(
         "downloads.create_task.celery_dispatched",
-        task_id=task_id,
-        celery_task_id=celery_task.id,
+        batch_task_id=batch_task_id,
+        orchestrator_task_id=orchestrator_task.id,
         report_count=len(request.reports),
     )
 
+    # Return the ID of the orchestrator task. The client will poll this
+    # task to get the ID of the chord for final result polling.
     return DownloadTaskCreateResponse(
-        success=True, message="下载任务已创建并分发到Celery队列", task_id=task_id
+        success=True, 
+        message="下载任务已创建并分发到Celery队列", 
+        task_id=orchestrator_task.id
     )
 
 

@@ -16,7 +16,7 @@ from src.services.downloader import Downloader
 from src.services.fund_report_service import FundReportService
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
 from src.parsers.xbrl_parser import XBRLParser
-from src.utils.serialization_utils import sqlalchemy_to_dict
+from src.utils.model_utils import orm_to_dict
 
 logger = get_logger(__name__)
 
@@ -129,8 +129,8 @@ def parse_report_chain(self, download_result: Dict) -> Dict:
             "upload_info_id": download_result.get("upload_info_id"),
         }
 
-    # 在返回前，将SQLAlchemy对象转换为可序列化的字典
-    download_result["parsed_data"] = sqlalchemy_to_dict(parsed_data_obj)
+    # 在返回前，使用新的工具函数将其转换为可序列化的字典
+    download_result["parsed_data"] = orm_to_dict(parsed_data_obj)
 
     return download_result
 
@@ -250,8 +250,15 @@ def start_download_pipeline(
     #    它会在job_group中的所有任务链都成功完成后，调用一次finalize_batch_download。
     #    `results` of the group will be passed as the first argument to the callback.
     callback = finalize_batch_download.s(task_id=task_id)
-    chord(job_group)(callback)
+    
+    # Capture the AsyncResult of the chord
+    chord_result = chord(job_group)(callback)
 
     bound_logger.info(
-        "start_download_pipeline.pipeline_started", report_count=len(reports_to_process)
+        "start_download_pipeline.pipeline_started", 
+        report_count=len(reports_to_process),
+        chord_task_id=chord_result.id # Log the chord's ID
     )
+    
+    # Return the chord's ID so the client can poll it for the final result
+    return {"main_task_id": task_id, "chord_task_id": chord_result.id}

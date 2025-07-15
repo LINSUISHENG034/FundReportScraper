@@ -8,13 +8,38 @@ SQLAlchemy模型用于持久化下载任务
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 import json
+import enum
+from pydantic import BaseModel, Field
 
 from sqlalchemy import Column, Integer, String, DateTime, Text, Enum as SQLEnum
 from sqlalchemy.ext.declarative import declarative_base
 
-from src.services.download_task_service import TaskStatus
-
 Base = declarative_base()
+
+# Define the Enum here, where it belongs.
+class TaskStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+# Define the Pydantic model here to break the circular dependency.
+class DownloadTask(BaseModel):
+    task_id: str
+    report_ids: List[str]
+    save_dir: str
+    max_concurrent: int = 3
+    status: TaskStatus = TaskStatus.PENDING
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    total_count: int
+    completed_count: int = 0
+    failed_count: int = 0
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    completed_ids: List[str] = []
+    failed_results: List[Dict[str, Any]] = []
+    error_message: Optional[str] = None
 
 
 class DownloadTaskModel(Base):
@@ -102,10 +127,8 @@ class DownloadTaskModel(Base):
             error_message=task.error_message,
         )
 
-    def to_download_task(self):
-        """转换为DownloadTask对象"""
-        from src.services.download_task_service import DownloadTask
-
+    def to_download_task(self) -> "DownloadTask":
+        """转换为DownloadTask Pydantic对象"""
         return DownloadTask(
             task_id=self.task_id,
             report_ids=json.loads(self.report_ids) if self.report_ids else [],
