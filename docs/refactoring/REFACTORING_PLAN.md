@@ -48,18 +48,43 @@
     3.  **修复代码:** 修复 `src/services/fund_report_service.py` 中的业务逻辑，确保其能正确协调底层模块。
 -   **产出:** 一个通过集成测试、能正确串联核心工作流的服务层。
 
-### 阶段三：API层端到端测试与统一 (E2E Test & Unify API Layer)
+### 阶段三：Celery Worker 与下载模块重构 (Refactor Celery Worker & Download Module)
+
+-   **负责人:** 开发团队 (在首席开发指导下)
+-   **目标:** 将当前高度耦合、难以测试的下载任务，重构为一条清晰、健壮、可扩展的分布式任务流水线。
+-   **核心方法论:**
+    1.  **单一职责原则 (Single Responsibility Principle):** 每个模块和任务只做一件事。
+    2.  **依赖倒置原则 (Dependency Inversion Principle):** 面向接口编程，而不是具体实现。
+    3.  **任务链模式 (Task Chaining Pattern):** 使用 Celery Canvas 将大型任务分解为一系列小而专注的步骤。
+-   **任务:**
+    1.  **核心下载器抽象 (Downloader Abstraction):**
+        -   在 `src/services/` 目录下创建新文件 `downloader.py`，定义一个只负责文件下载的 `Downloader` 类。
+        -   `Downloader` 应包含完整的网络请求、错误处理和重试逻辑。
+        -   为其编写独立的单元测试 `tests/unit/test_downloader.py`。
+    2.  **服务层重构 (Service Layer Refactoring):**
+        -   修改 `FundReportService`，为其注入新的 `Downloader` 依赖。
+        -   剥离 `FundReportService` 的下载职责，使其专注于业务流程，并移除所有 `_sync` 后缀的模拟方法。
+    3.  **Celery 任务分解与编排 (Task Decomposition & Orchestration):**
+        -   重写 `src/tasks/download_tasks.py`。
+        -   将巨型任务分解为多个原子任务：`download_single_report`, `parse_single_report`, `save_parsed_data`。
+        -   使用 `celery.chord` 编排任务流，并创建一个 `finalize_batch_download` 回调任务来统一处理结果。
+    4.  **错误处理与状态管理 (Error Handling & State Management):**
+        -   在原子任务上配置 Celery 的自动重试机制 (`autoretry_for`)。
+        -   利用 Celery 的内置状态传递，不再手动管理数据库中的任务状态。
+-   **产出:** 一个具备高容错性、可水平扩展、职责清晰的后台任务处理系统。
+
+### 阶段四：API层端到端测试与统一 (E2E Test & Unify API Layer)
 
 -   **负责人:** 开发团队
 -   **任务:**
     1.  在 `tests/integration/` 创建 `test_reports_api.py`。
     2.  **为v1和v2编写测试:** 分别为 `reports.py` 和 `reports_v2.py` 中的端点编写测试，锁定其现有行为。
-    3.  **合并逻辑:** 将 `reports_v2.py` 的功能合并到 `reports.py` 中，消除冗余和 `_v2` 后���。
+    3.  **合并逻辑:** 将 `reports_v2.py` 的功能合并到 `reports.py` 中，消除冗余和 `_v2` 后缀。
     4.  **运行测试:** 确保合并后的 `reports.py` 能通过先前为v1和v2编写的所有测试。
     5.  **清理:** 确认无误后，安全删除 `src/api/routes/reports_v2.py` 文件。
 -   **产出:** 一个接口统一、经过端到端测试的API层。
 
-### 阶段四：全局标准化 (Global Standardization)
+### 阶段五：全局标准化 (Global Standardization)
 
 -   **负责人:** 开发团队
 -   **任务:**
