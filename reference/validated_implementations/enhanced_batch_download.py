@@ -271,15 +271,15 @@ async def test_batch_download():
         # 搜索少量报告进行下载测试
         criteria = FundSearchCriteria(
             year=2024,
-            report_type=ReportType.ANNUAL,
-            fund_company_short_name="工银瑞信",
-            page_size=5  # 只下载5个进行测试
+            fund_type=FundType.FOF,
+            report_type=ReportType.QUARTERLY_Q4,
+            page_size=1  # 只下载5个进行测试2
         )
         
         reports = await processor.search_reports(criteria)
         
         if reports:
-            save_dir = Path("data/enhanced_test_download")
+            save_dir = Path("data/SEMI_ANNUAL")
             stats = await processor.batch_download(reports, save_dir, max_concurrent=2)
             print(f"✅ 批量下载测试完成")
         else:

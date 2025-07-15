@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 
 from src.core.config import settings
 from src.core.logging import get_logger
-from src.core.fund_search_parameters import FundSearchCriteria, ReportType as NewReportType, FundType
+from src.core.fund_search_parameters import FundSearchCriteria, ReportType, FundType
 from httpx import AsyncClient
 from src.scrapers.base import BaseScraper, ParseError
 
@@ -38,7 +38,7 @@ class CSRCFundReportScraper(BaseScraper):
     async def get_report_list(
         self,
         year: int,
-        report_type: NewReportType,
+        report_type: ReportType,
         page: int = 1,
         page_size: int = 100,
         fund_type: Optional[str] = None,
@@ -195,7 +195,7 @@ class CSRCFundReportScraper(BaseScraper):
         """
         # 从kwargs中提取参数
         year = kwargs.get('year', 2024)
-        report_type = kwargs.get('report_type', NewReportType.ANNUAL)
+        report_type = kwargs.get('report_type', ReportType.ANNUAL)
         page = kwargs.get('page', 1)
         page_size = kwargs.get('page_size', 20)
 
@@ -213,7 +213,7 @@ class CSRCFundReportScraper(BaseScraper):
     def _build_ao_data(
         self,
         year: int,
-        report_type: NewReportType,
+        report_type: ReportType,
         page: int,
         page_size: int,
         fund_type: Optional[str] = None,
@@ -231,30 +231,23 @@ class CSRCFundReportScraper(BaseScraper):
 
         # 定义报告类型映射
         report_type_mapping = {
-            NewReportType.QUARTERLY_Q1: "FB030010",
-            NewReportType.QUARTERLY_Q2: "FB030020",
-            NewReportType.QUARTERLY_Q3: "FB030030",
-            NewReportType.SEMI_ANNUAL: "FB020000",
-            NewReportType.ANNUAL: "FB010000",
-            NewReportType.PROSPECTUS: "FB040000",
-            NewReportType.LISTING_ANNOUNCEMENT: "FB070000",
-            NewReportType.FUND_PROFILE: "FB080000",
+            ReportType.QUARTERLY_Q1: "FB030010",
+            ReportType.QUARTERLY_Q2: "FB030020",
+            ReportType.QUARTERLY_Q3: "FB030030",
+            ReportType.SEMI_ANNUAL: "FB020010",
+            ReportType.ANNUAL: "FB010010",
+            ReportType.FUND_PROFILE: "FA010070",
         }
 
-        # 直接使用新的报告类型枚举值
-        if isinstance(report_type, NewReportType):
+        # 直接使用报告类型枚举值
+        if isinstance(report_type, ReportType):
             report_type_code = report_type.value
         else:
-            # 兼容旧的 ReportType
-            legacy_report_type_mapping = {
-                ReportType.QUARTERLY: NewReportType.QUARTERLY_Q1.value,
-                ReportType.SEMI_ANNUAL: NewReportType.SEMI_ANNUAL.value,
-                ReportType.ANNUAL: NewReportType.ANNUAL.value
-            }
-            report_type_code = legacy_report_type_mapping.get(report_type, NewReportType.QUARTERLY_Q1.value)
+            # 兼容其他格式
+            report_type_code = str(report_type)
 
         # 处理特殊情况：基金产品资料概要需要空的reportYear
-        report_year = "" if report_type_code == NewReportType.FUND_PROFILE.value else str(year)
+        report_year = "" if report_type_code == ReportType.FUND_PROFILE.value else str(year)
 
         # 按照验证的实现构建完整参数列表
         ao_data = [
@@ -518,7 +511,7 @@ class CSRCFundReportScraper(BaseScraper):
         file_url: str,
         fund_code: str,
         report_date: str,
-        report_type: NewReportType
+        report_type: ReportType
     ) -> bytes:
         """
         兼容原有接口的下载方法
@@ -535,7 +528,7 @@ class CSRCFundReportScraper(BaseScraper):
     async def get_all_reports(
         self,
         year: int,
-        report_type: NewReportType,
+        report_type: ReportType,
         max_pages: Optional[int] = None
     ) -> List[Dict]:
         """

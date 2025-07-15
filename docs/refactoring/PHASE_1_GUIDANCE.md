@@ -121,8 +121,8 @@ asnyc def test_get_report_list_http_error(mocker):
 
 -   **位置:** `tests/fixtures/`
 -   **要求:**
-    1.  下载至少 **3-5份** 不同基金公司、不同报告类型（年报、Q1季报、半年报）的真实HTML报告文件。
-    2.  将这些文件命名为易于识别的名称，例如 `fund_A_2023_annual.html`, `fund_B_2024_q1.html`。
+    1.  下载至少 **3-5份** 不同基金公司、不同报告类型（年报、Q1季报、半年报）的真实XBRL报告文件。
+    2.  将这些文件命名为易于识别的名称，例如 `fund_A_2023_annual.xbrl`, `fund_B_2024_q1.xbrl`。
     3.  确保这些样本文件包含了所有需要解析的表格：资产配置、前十大持仓、行业分布。
 
 #### 2.3.2 测试 `parse_file` 方法
