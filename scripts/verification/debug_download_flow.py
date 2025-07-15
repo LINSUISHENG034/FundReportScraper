@@ -55,9 +55,9 @@ async def main():
     # --- 2. 定义搜索条件 ---
     # 使用与 verify_phase4_e2e_download.py 相同的搜索条件
     criteria = FundSearchCriteria(
-        year=2025,
-        report_type=ReportType.QUARTERLY_Q1,
-        fund_code="004899"
+        year=2024,
+        report_type=ReportType.ANNUAL,
+        fund_code="015975"
     )
     logging.info(f"使用的搜索条件: {criteria.get_description()}")
 

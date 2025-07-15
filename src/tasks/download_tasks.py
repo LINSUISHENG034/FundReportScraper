@@ -6,6 +6,7 @@ Download Tasks (Celery) - Phase 3 Correct Implementation
 """
 
 import aiohttp
+import requests
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any
@@ -21,6 +22,7 @@ from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
 from src.parsers.xbrl_parser import XBRLParser
 
 from src.utils.celery_utils import get_async_result, run_async_task
+from src.utils.serialization_utils import sqlalchemy_to_dict
 from src.core.fund_search_parameters import FundSearchCriteria, ReportType
 
 logger = get_logger(__name__)
@@ -31,23 +33,17 @@ logger = get_logger(__name__)
 # 这里为了简化，我们在任务内部获取它们，但在大型应用中应使用更高级的DI框架。
 # ============================================================================
 
-async def get_services():
+def get_download_service_sync() -> FundReportService:
     """
-    (异步)集中创建和提供服务实例。
-    现在是异步的，以正确处理 aiohttp.ClientSession 的创建。
+    获取一个纯同步的、用于下载的服务实例。
     """
     downloader = Downloader()
-    # 增加超时时间以应对目标服务器响应缓慢的情况
-    # 关键修复：在Session级别添加User-Agent，模拟真实浏览器，解决请求挂起问题
-    session = aiohttp.ClientSession(
-        timeout=aiohttp.ClientTimeout(total=30.0),
-        headers={'User-Agent': settings.scraper.user_agent}
-    )
-    scraper = CSRCFundReportScraper(session=session)
-    fund_report_service = FundReportService(scraper, downloader)
-    parser = XBRLParser()
-    
-    return fund_report_service, parser, session
+    # 最终修复：必须实例化一个Scraper，因为FundReportService需要
+    # 调用它的 get_download_url 方法。
+    # 幸运的是，Scraper的实例化不需要session。
+    scraper = CSRCFundReportScraper()
+    fund_report_service = FundReportService(scraper=scraper, downloader=downloader)
+    return fund_report_service
 
 # ============================================================================
 # 测试任务 (Test Tasks)
@@ -72,38 +68,29 @@ def test_celery_task(self):
 # 它们不应该自己创建依赖，而是通过某种方式被注入。
 # ============================================================================
 
-async def _async_download_logic(report_info: Dict, save_dir: str) -> Dict:
-    """将所有异步逻辑封装在此函数中，以便从同步的Celery任务中调用。"""
-    fund_report_service, _, session = await get_services()
-    try:
-        download_result = await fund_report_service.download_report(
-            report=report_info,
-            save_dir=Path(save_dir)
-        )
-        return download_result
-    finally:
-        # 确保每个任务创建的 session 都被关闭
-        if session:
-            await session.close()
 
-@celery_app.task(bind=True, autoretry_for=(aiohttp.ClientError,), retry_kwargs={'max_retries': 3, 'countdown': 60})
+
+@celery_app.task(bind=True, autoretry_for=(requests.exceptions.RequestException,), retry_kwargs={'max_retries': 3, 'countdown': 60})
 def download_report_chain(self, report_info: Dict, save_dir: str) -> Dict:
     """
     原子任务：下载单个报告。
-    这是任务链的第一步。
+    这是任务链的第一步。现在是100%同步执行，无任何异步依赖。
     """
     bound_logger = logger.bind(upload_info_id=report_info.get("upload_info_id"), celery_task_id=self.request.id)
-    bound_logger.info("download_report_chain.start")
+    bound_logger.info("download_report_chain.start.sync")
     
-    # 使用 run_async_task 运行我们封装的异步逻辑
-    download_result = run_async_task(
-        _async_download_logic,
-        report_info=report_info,
-        save_dir=save_dir
+    # 获取纯同步的服务
+    fund_report_service = get_download_service_sync()
+    
+    # 直接调用同步方法，不再需要复杂的 try/finally 来关闭会话
+    download_result = fund_report_service.download_report(
+        report=report_info,
+        save_dir=Path(save_dir)
     )
-    
+
     if not download_result.get("success"):
-        # 异常将在autoretry_for中被捕获并自动重试
+        # The exception for autoretry is now requests.exceptions.RequestException
+        # We still raise a generic exception to be safe.
         raise Exception(f"Download failed: {download_result.get('error')}")
         
     return download_result
@@ -124,12 +111,14 @@ def parse_report_chain(self, download_result: Dict) -> Dict:
     # 解析任务是纯CPU密集型的，不需要异步服务
     parser = XBRLParser()
     file_path = Path(download_result["file_path"])
-    parsed_data = parser.parse_file(file_path)
+    parsed_data_obj = parser.parse_file(file_path)
 
-    if not parsed_data:
+    if not parsed_data_obj:
         return {"success": False, "error": "Parsing failed", "upload_info_id": download_result.get("upload_info_id")}
 
-    download_result["parsed_data"] = parsed_data
+    # 在返回前，将SQLAlchemy对象转换为可序列化的字典
+    download_result["parsed_data"] = sqlalchemy_to_dict(parsed_data_obj)
+    
     return download_result
 
 
