@@ -63,14 +63,14 @@ class ParsingMetrics:
         self.parser_usage[parser_name] = self.parser_usage.get(parser_name, 0) + 1
 
 
-class EnhancedXBRLParserFacade:
+class XBRLParserFacade:
     """增强型XBRL解析器门面类
     
     集成质量监控、LLM辅助和数据修复功能的统一解析接口。
     """
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        self.logger = get_logger("enhanced_xbrl_parser_facade")
+        self.logger = get_logger("xbrl_parser_facade")
         self.config = config or {}
         
         # 核心组件
@@ -463,4 +463,4 @@ class EnhancedXBRLParserFacade:
 
 
 # 保持向后兼容性
-XBRLParserFacade = EnhancedXBRLParserFacade
+# XBRLParserFacade is now the main class

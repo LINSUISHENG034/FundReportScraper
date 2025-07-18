@@ -48,11 +48,11 @@ class AssetAllocationData(BaseModel):
     @classmethod
     def validate_asset_type(cls, v):
         valid_types = [
-            '股票投资', '债券投资', '基金投资', '银行存款',
+            '股票投资', '债券投资', '基金投资', '银行存款', '权益投资',
             '买入返售金融资产', '其他资产', '现金及现金等价物'
         ]
         # 允许包含这些关键词的变体
-        if not any(keyword in v for keyword in ['股票', '债券', '基金', '存款', '现金', '其他']):
+        if not any(keyword in v for keyword in ['股票', '债券', '基金', '存款', '现金', '其他', '权益']):
             raise ValueError(f'无效的资产类型: {v}')
         return v
 
@@ -90,15 +90,25 @@ class FundXBRLParser(BaseParser):
         """检查是否能够解析给定的XBRL内容"""
         if not content:
             return False
-        
-        # 检查XBRL标识
-        xbrl_indicators = [
-            '<html', '<xbrl', 'xmlns:xbrl', 'xbrl.xsd',
-            '基金', '年度报告', '季度报告', '半年报'
-        ]
-        
+
         content_lower = content.lower()
-        return any(indicator.lower() in content_lower for indicator in xbrl_indicators)
+
+        # 检查核心XBRL/iXBRL标识
+        core_xbrl_indicators = [
+            '<xbrl', 'xmlns:xbrl', 'xbrli:', 'ix:', 'xbrl.xsd'
+        ]
+        if any(indicator in content_lower for indicator in core_xbrl_indicators):
+            return True
+
+        # 对于可能是iXBRL的HTML文件，进行启发式检查
+        # 必须包含<html>，并且包含至少一个基金报告关键词
+        if '<html' in content_lower:
+            fund_report_keywords = ['基金', '年度报告', '季度报告', '半年度报告', '资产负债表', '利润表', '投资组合']
+            # Use original content for Chinese keywords
+            if any(keyword in content for keyword in fund_report_keywords):
+                return True
+            
+        return False
     
     def parse_content(self, content: str, file_path: Optional[Path] = None) -> ParseResult:
         """解析XBRL内容"""
@@ -182,7 +192,8 @@ class FundXBRLParser(BaseParser):
             fund_manager = self._extract_fund_manager(soup)
             
             # 提取净值信息
-            nav_info = self._extract_nav_info(soup)
+            report_year = report_period_end.year
+            nav_info = self._extract_nav_info(soup, report_year)
             
             return {
                 'fund_code': fund_code,
@@ -280,26 +291,28 @@ class FundXBRLParser(BaseParser):
             report_period_start = self._infer_period_start(report_period_end, title_text)
         
         # 确定报告类型
+        title_text = title_text or ""  # 确保title_text不为None
         if '年度报告' in title_text or '年报' in title_text:
-            report_type = 'ANNUAL'
+            report_type = '年度报告'
         elif '半年' in title_text:
-            report_type = 'SEMI_ANNUAL'
+            report_type = '半年度报告'
         elif 'Q1' in title_text or '一季' in title_text:
-            report_type = 'Q1'
+            report_type = '第一季度报告'
         elif 'Q2' in title_text or '二季' in title_text:
-            report_type = 'Q2'
+            report_type = '第二季度报告'
         elif 'Q3' in title_text or '三季' in title_text:
-            report_type = 'Q3'
+            report_type = '第三季度报告'
         elif 'Q4' in title_text or '四季' in title_text:
-            report_type = 'Q4'
+            report_type = '第四季度报告'
         else:
-            report_type = 'QUARTERLY'
+            report_type = '未知类型'
         
         return report_period_start, report_period_end, report_type
     
     def _infer_period_start(self, period_end: date, title_text: str) -> date:
         """根据报告期结束日期和报告类型推断开始日期"""
         year = period_end.year
+        title_text = title_text or ""  # 确保title_text不为None
         
         if '年度报告' in title_text or '年报' in title_text:
             # 年报：1月1日到12月31日
@@ -340,7 +353,7 @@ class FundXBRLParser(BaseParser):
         
         return None
     
-    def _extract_nav_info(self, soup: BeautifulSoup) -> Dict[str, Optional[Decimal]]:
+    def _extract_nav_info(self, soup: BeautifulSoup, report_year: int) -> Dict[str, Optional[Decimal]]:
         """提取净值信息"""
         nav_info = {
             'net_asset_value': None,
@@ -348,24 +361,49 @@ class FundXBRLParser(BaseParser):
             'total_shares': None,
             'accumulated_nav': None
         }
-        
-        # 查找包含净值信息的表格
+
+        # 策略1: 查找包含净值信息的表格
         for table in soup.find_all('table', class_='bb'):
             rows = table.find_all('tr')
+            header_row = rows[0] if rows else None
+            if not header_row: continue
+
+            headers = [cell.get_text(strip=True) for cell in header_row.find_all(['td', 'th'])]
+            year_col_index = -1
+            for i, header in enumerate(headers):
+                if str(report_year) in header:
+                    year_col_index = i
+                    break
+            
+            if year_col_index == -1: continue
+
             for row in rows:
                 cells = [cell.get_text(strip=True) for cell in row.find_all(['td', 'th'])]
-                
+                if not cells: continue
+
                 # 查找单位净值
-                if any('单位净值' in cell for cell in cells):
-                    for i, cell in enumerate(cells):
-                        if '单位净值' in cell and i + 1 < len(cells):
-                            nav_info['net_asset_value'] = self._parse_decimal(cells[i + 1])
+                if any('单位净值' in cell for cell in cells) and len(cells) > year_col_index:
+                    value = self._parse_decimal(cells[year_col_index])
+                    if value is not None: nav_info['net_asset_value'] = value
                 
-                # 查找基金总净资产
-                if any('基金总净资产' in cell or '净资产总值' in cell for cell in cells):
-                    for i, cell in enumerate(cells):
-                        if ('基金总净资产' in cell or '净资产总值' in cell) and i + 1 < len(cells):
-                            nav_info['total_net_assets'] = self._parse_decimal(cells[i + 1])
+                # 查找基金总净资产或资产总计
+                if any('资产总计' in cell or '基金总净资产' in cell or '净资产总值' in cell or '期末基金资产净值' in cell for cell in cells) and len(cells) > year_col_index:
+                    value = self._parse_decimal(cells[year_col_index])
+                    if value is not None: nav_info['total_net_assets'] = value
+
+        # 如果表格解析失败，使用后备策略
+        if nav_info['total_net_assets'] is None:
+            text_nodes = soup.find_all(text=re.compile(r'(?:基金总净资产|净资产总值|期末基金资产净值)'))
+            for node in text_nodes:
+                # 尝试在父级元素的兄弟节点中寻找数值
+                parent = node.find_parent()
+                if parent:
+                    next_sibling = parent.find_next_sibling()
+                    if next_sibling:
+                        value = self._parse_decimal(next_sibling.get_text(strip=True))
+                        if value is not None:
+                            nav_info['total_net_assets'] = value
+                            break # 找到后即停止
         
         return nav_info
     
@@ -376,11 +414,20 @@ class FundXBRLParser(BaseParser):
         # 查找资产配置相关的表格
         for table in soup.find_all('table', class_='bb'):
             # 检查表格是否包含资产配置信息
-            table_text = table.get_text()
+            try:
+                table_text = table.get_text() if table else ""
+                if not table_text:
+                    continue
+            except Exception as e:
+                self.logger.warning(f"Failed to extract text from table in _extract_asset_allocations: {e}")
+                continue
+                
+            # 扩展关键词匹配，包括资产负债表中的投资项目
             if not any(keyword in table_text for keyword in [
-                '资产配置', '投资组合', '股票投资', '债券投资', 
+                '资产配置', '投资组合', '股票投资', '债券投资', '基金投资',
                 '基金的资产组合情况', '基金资产组合', '除基础设施资产支持证券之外',
-                '固定收益投资', '货币资金', '其他资产'
+                '固定收益投资', '货币资金', '其他资产', '报告期末按行业分类的股票投资组合',
+                '资产负债表', '交易性金融资产', '资产：', '负债和净资产'
             ]):
                 continue
             
@@ -417,20 +464,36 @@ class FundXBRLParser(BaseParser):
                     asset_type = cells[0]
                     start_col = 1
                 
-                if not asset_type or asset_type in ['合计', '总计', '小计']:
+                if not asset_type or asset_type in ['合计', '总计', '小计', '资产：', '负债：', '负债和净资产']:
                     continue
                 
                 # 提取市值和比例
                 market_value = None
                 percentage = None
                 
+                # 特殊处理：将"股票投资"映射为"权益投资"
+                if asset_type == '股票投资':
+                    asset_type = '权益投资'
+                elif '股票投资' in asset_type:
+                    asset_type = '权益投资'
+                
                 for cell in cells[start_col:]:
                     if '%' in cell:
                         percentage = self._parse_percentage(cell)
-                    elif self._is_numeric(cell):
+                    elif self._is_numeric(cell) or cell in ['-', '--']:
                         market_value = self._parse_decimal(cell)
                 
-                if market_value is not None or percentage is not None:
+                # 对于重要的资产类型（如权益投资），即使值为0也要记录
+                important_types = ['权益投资', '股票投资', '债券投资', '基金投资']
+                should_include = (market_value is not None or percentage is not None or 
+                                asset_type in important_types)
+                
+                if should_include:
+                    # 如果是重要类型但没有数值，设置为0
+                    if asset_type in important_types and market_value is None and percentage is None:
+                        market_value = Decimal('0')
+                        percentage = Decimal('0')
+                    
                     allocation = AssetAllocation(
                         asset_type=asset_type,
                         market_value=market_value,
@@ -446,7 +509,14 @@ class FundXBRLParser(BaseParser):
         
         # 查找持仓相关的表格
         for table in soup.find_all('table', class_='bb'):
-            table_text = table.get_text()
+            try:
+                table_text = table.get_text() if table else ""
+                if not table_text:
+                    continue
+            except Exception as e:
+                self.logger.warning(f"Failed to extract text from table in _extract_top_holdings: {e}")
+                continue
+                
             if not any(keyword in table_text for keyword in [
                 '前十大', '重仓股', '持仓明细', '股票名称', 
                 '债券明细', '基金投资明细', '资产支持证券',
@@ -506,8 +576,15 @@ class FundXBRLParser(BaseParser):
         
         # 查找行业配置相关的表格
         for table in soup.find_all('table', class_='bb'):
-            table_text = table.get_text()
-            if not any(keyword in table_text for keyword in ['行业配置', '行业分布', '行业投资']):
+            try:
+                table_text = table.get_text() if table else ""
+                if not table_text:
+                    continue
+            except Exception as e:
+                self.logger.warning(f"Failed to extract text from table in _extract_industry_allocations: {e}")
+                continue
+                
+            if not any(keyword in table_text for keyword in ['行业配置', '行业分布', '行业投资', '报告期末按行业分类的股票投资组合']):
                 continue
             
             rows = table.find_all('tr')

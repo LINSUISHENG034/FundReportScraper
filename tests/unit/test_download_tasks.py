@@ -212,8 +212,12 @@ class TestStartDownloadPipeline:
         # 行动 (Act)
         result = start_download_pipeline(task_id, mock_reports["data"], "/tmp/downloads")
 
-        # 断言 (Assert) - start_download_pipeline没有返回值，只验证调用
-        assert result is None
+        # 断言 (Assert) - start_download_pipeline应该返回包含task_id的字典
+        assert result is not None
+        assert isinstance(result, dict)
+        assert "main_task_id" in result
+        assert "chord_task_id" in result
+        assert result["main_task_id"] == task_id
 
         # 验证调用
         mock_group.assert_called()

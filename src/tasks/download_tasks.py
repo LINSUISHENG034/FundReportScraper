@@ -15,7 +15,7 @@ from src.core.logging import get_logger
 from src.services.downloader import Downloader
 from src.services.fund_report_service import FundReportService
 from src.scrapers.csrc_fund_scraper import CSRCFundReportScraper
-from src.parsers.xbrl_parser import XBRLParser
+from src.parsers.fund_xbrl_parser import FundXBRLParser
 from src.utils.model_utils import orm_to_dict
 
 logger = get_logger(__name__)
@@ -118,19 +118,22 @@ def parse_report_chain(self, download_result: Dict) -> Dict:
     bound_logger.info("parse_report_chain.start")
 
     # 解析任务是纯CPU密集型的，不需要异步服务
-    parser = XBRLParser()
+    parser = FundXBRLParser()
     file_path = Path(download_result["file_path"])
-    parsed_data_obj = parser.parse_file(file_path)
+    parse_result = parser.parse_file(file_path)
 
-    if not parsed_data_obj:
+    if not parse_result or not parse_result.success or not parse_result.fund_report:
+        error_msg = "Parsing failed"
+        if parse_result and parse_result.errors:
+            error_msg = f"Parsing failed: {'; '.join(parse_result.errors)}"
         return {
             "success": False,
-            "error": "Parsing failed",
+            "error": error_msg,
             "upload_info_id": download_result.get("upload_info_id"),
         }
 
     # 在返回前，使用新的工具函数将其转换为可序列化的字典
-    download_result["parsed_data"] = orm_to_dict(parsed_data_obj)
+    download_result["parsed_data"] = orm_to_dict(parse_result.fund_report)
 
     return download_result
 

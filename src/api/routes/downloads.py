@@ -8,9 +8,6 @@ from pydantic import BaseModel, Field
 from src.core.logging import get_logger
 from src.services.fund_report_service import FundReportService
 
-
-from src.parsers.xbrl_parser import XBRLParser
-
 from src.tasks.download_tasks import start_download_pipeline  # Phase 3重构版本
 from pathlib import Path
 
