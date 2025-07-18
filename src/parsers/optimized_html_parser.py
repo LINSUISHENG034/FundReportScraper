@@ -1,18 +1,19 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-优化的HTML解析器 - 基于现有逻辑的简化和优化版本
-Optimized HTML parser - simplified and optimized version based on existing logic
+优化的HTML解析器
+用于解析基金报告的HTML内容
 """
 
 import re
-from pathlib import Path
-from typing import Optional, List, Dict, Any
 from decimal import Decimal, InvalidOperation
-
+from typing import List, Optional, Dict, Any
+from pathlib import Path
 from bs4 import BeautifulSoup, Tag
 
-from src.core.logging import get_logger
-from src.models.fund_data import FundReport, AssetAllocation, TopHolding, IndustryAllocation
-from src.parsers.base_parser import BaseParser, ParseResult, ParserType
+from ..models.fund_data import FundReport, AssetAllocation, TopHolding, IndustryAllocation
+from ..core.logging import get_logger
+from .base_parser import BaseParser, ParserType, ParseResult
 
 
 class OptimizedHTMLParser(BaseParser):
@@ -20,228 +21,232 @@ class OptimizedHTMLParser(BaseParser):
     
     def __init__(self):
         super().__init__(ParserType.HTML_LEGACY)
-        
-        # 优化的字段匹配模式
-        self.field_patterns = {
-            "fund_code": [
-                r"基金主?代码[：:]?\s*([A-Za-z0-9]{6})",
-                r"基金代码[：:]?\s*([A-Za-z0-9]{6})",
-                r"产品代码[：:]?\s*([A-Za-z0-9]{6})"
-            ],
-            "fund_name": [
-                r"基金名称[：:]?\s*([^\n\r]+)",
-                r"基金全称[：:]?\s*([^\n\r]+)",
-                r"基金简称[：:]?\s*([^\n\r]+)"
-            ],
-            "net_asset_value": [
-                r"基金份额净值[：:]?\s*([\d.]+)",
-                r"份额净值[：:]?\s*([\d.]+)",
-                r"单位净值[：:]?\s*([\d.]+)",
-                r"报告期末基金份额净值[：:]?\s*([\d.]+)"
-            ],
-            "total_net_assets": [
-                r"基金资产净值[：:]?\s*([\d,]+\.?\d*)",
-                r"资产净值[：:]?\s*([\d,]+\.?\d*)",
-                r"报告期末基金资产净值[：:]?\s*([\d,]+\.?\d*)",
-                r"资产总计[：:]?\s*([\d,]+\.?\d*)"
-            ]
-        }
-        
-        # 标签搜索关键词
-        self.label_keywords = {
-            "fund_code": ["基金主代码", "基金代码", "产品代码"],
-            "fund_name": ["基金名称", "基金全称", "基金简称"],
-            "net_asset_value": ["基金份额净值", "份额净值", "单位净值", "报告期末基金份额净值"],
-            "total_net_assets": ["基金资产净值", "资产净值", "报告期末基金资产净值", "资产总计"]
-        }
+        self.logger = get_logger(__name__)
     
     def can_parse(self, content: str, file_path: Optional[Path] = None) -> bool:
         """检查是否能够解析给定的内容"""
         if not content:
             return False
         
-        # 检查HTML特征
-        html_indicators = [
-            r'<html[^>]*>',
-            r'<head[^>]*>',
-            r'<body[^>]*>',
-            r'<table[^>]*>',
-            r'<div[^>]*>'
-        ]
-        
+        # 检查是否包含HTML标签
+        html_indicators = ['<table', '<tr', '<td', '<div', '<span']
         content_lower = content.lower()
-        html_matches = sum(1 for pattern in html_indicators 
-                          if re.search(pattern, content_lower))
         
-        # 检查基金报告关键词
-        fund_keywords = ["基金代码", "基金名称", "份额净值", "资产净值"]
-        fund_matches = sum(1 for keyword in fund_keywords 
-                          if keyword in content)
+        # 至少包含一个HTML标签
+        has_html = any(indicator in content_lower for indicator in html_indicators)
         
-        # HTML特征 + 基金关键词
-        return html_matches >= 2 and fund_matches >= 2
+        # 检查是否包含基金报告相关关键词
+        fund_keywords = ['基金代码', '基金名称', '投资组合', '资产配置', '前十']
+        has_fund_content = any(keyword in content for keyword in fund_keywords)
+        
+        return has_html and has_fund_content
     
-    def parse_content(self, content: str, file_path: Optional[Path] = None) -> ParseResult:
+    def parse_content(self, content: str, file_path: Optional[Path] = None):
+        """解析内容并返回解析结果"""
+        try:
+            fund_report = self.parse(content)
+            return self._create_success_result(fund_report, file_path)
+        except Exception as e:
+            error_msg = f"HTML解析失败: {str(e)}"
+            self.logger.error(error_msg, file_path=str(file_path) if file_path else None)
+            return self._create_error_result(error_msg, file_path)
+    
+    def parse(self, html_content: str) -> FundReport:
         """解析HTML内容"""
         try:
-            soup = BeautifulSoup(content, "html.parser")
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # 创建基金报告对象
             fund_report = FundReport()
             
             # 提取基本信息
             self._extract_basic_info(soup, fund_report)
             
+            # 提取额外信息
+            self._extract_additional_info(soup, fund_report)
+            
+            # 提取报告期间
+            self._extract_report_period(soup, fund_report)
+            
             # 提取表格数据
             self._extract_table_data(soup, fund_report)
             
-            return self._create_success_result(fund_report, file_path)
+            return fund_report
             
         except Exception as e:
-            self.logger.error("HTML解析异常", error=str(e))
-            return self._create_error_result(f"HTML解析异常: {str(e)}")
+            self.logger.error(f"HTML解析失败: {e}")
+            raise
     
     def _extract_basic_info(self, soup: BeautifulSoup, fund_report: FundReport):
         """提取基本信息"""
-        # 方法1: 使用正则表达式在全文中搜索
-        full_text = soup.get_text()
-        self._extract_with_regex(full_text, fund_report)
+        # 基金代码
+        fund_code = self._search_by_labels(soup, ["基金代码", "代码"])
+        if fund_code:
+            fund_report.fund_code = fund_code
         
-        # 方法2: 使用结构化标签搜索补充缺失字段
-        self._extract_with_labels(soup, fund_report)
+        # 基金名称
+        fund_name = self._search_by_labels(soup, ["基金名称", "基金简称", "名称"])
+        if fund_name:
+            fund_report.fund_name = fund_name
         
-        self.logger.debug("基本信息提取完成",
-                         fund_code=fund_report.fund_code,
-                         fund_name=fund_report.fund_name,
-                         nav=str(fund_report.net_asset_value) if fund_report.net_asset_value else None,
-                         total_assets=str(fund_report.total_net_assets) if fund_report.total_net_assets else None)
+        # 净值
+        nav = self._search_by_labels(soup, ["单位净值", "净值", "基金单位净值"])
+        if nav:
+            fund_report.net_asset_value = self._parse_decimal(nav)
+        
+        # 总净资产
+        total_assets = self._search_by_labels(soup, ["基金资产净值", "资产净值", "净资产"])
+        if total_assets:
+            fund_report.total_net_assets = self._parse_decimal(total_assets)
     
-    def _extract_with_regex(self, text: str, fund_report: FundReport):
-        """使用正则表达式提取信息"""
-        for field, patterns in self.field_patterns.items():
-            if getattr(fund_report, field) is not None:
-                continue  # 字段已有值，跳过
-            
-            for pattern in patterns:
-                match = re.search(pattern, text, re.IGNORECASE)
-                if match:
-                    value = match.group(1).strip()
-                    
-                    if field in ["net_asset_value", "total_net_assets"]:
-                        decimal_value = self._parse_decimal(value)
-                        if decimal_value:
-                            setattr(fund_report, field, decimal_value)
-                            break
-                    else:
-                        if value and len(value) > 1:
-                            setattr(fund_report, field, value)
-                            break
+    def _extract_additional_info(self, soup: BeautifulSoup, fund_report: FundReport):
+        """提取额外信息"""
+        # 基金经理
+        fund_manager = self._search_by_labels(soup, ["基金经理", "经理"])
+        if fund_manager and not hasattr(fund_report, 'fund_manager'):
+            fund_report.fund_manager = fund_manager
+        
+        # 托管人
+        custodian = self._search_by_labels(soup, ["基金托管人", "托管人", "托管银行"])
+        if custodian and not hasattr(fund_report, 'custodian'):
+            fund_report.custodian = custodian
+        
+        # 管理公司
+        management_company = self._search_by_labels(soup, ["基金管理人", "管理人", "管理公司"])
+        if management_company and not hasattr(fund_report, 'management_company'):
+            fund_report.management_company = management_company
+        
+        # 基金类型
+        fund_type = self._search_by_labels(soup, ["基金类型", "类型", "基金性质"])
+        if fund_type and not hasattr(fund_report, 'fund_type'):
+            fund_report.fund_type = fund_type
     
-    def _extract_with_labels(self, soup: BeautifulSoup, fund_report: FundReport):
-        """使用标签搜索提取信息"""
-        for field, keywords in self.label_keywords.items():
-            if getattr(fund_report, field) is not None:
-                continue  # 字段已有值，跳过
-            
-            for keyword in keywords:
-                value = self._find_value_by_label(soup, keyword)
-                if value:
-                    if field in ["net_asset_value", "total_net_assets"]:
-                        decimal_value = self._parse_decimal(value)
-                        if decimal_value:
-                            setattr(fund_report, field, decimal_value)
-                            break
-                    else:
-                        if len(value) > 1:
-                            setattr(fund_report, field, value)
-                            break
-    
-    def _find_value_by_label(self, soup: BeautifulSoup, label: str) -> Optional[str]:
-        """通过标签查找对应的值 - 简化版本"""
-        try:
-            # 查找包含标签的元素
-            label_elements = soup.find_all(text=re.compile(label, re.IGNORECASE))
-            
-            for label_element in label_elements:
-                if not label_element.parent:
-                    continue
-                
-                # 策略1: 值在同一个元素内
-                parent_text = label_element.parent.get_text(strip=True)
-                match = re.search(f"{re.escape(label)}\\s*[:：]?\\s*([\\w.-]+)", parent_text)
-                if match and len(match.group(1)) > 1:
-                    return match.group(1)
-                
-                # 策略2: 值在下一个兄弟元素中
-                next_sibling = label_element.parent.find_next_sibling()
-                if next_sibling:
-                    sibling_text = next_sibling.get_text(strip=True)
-                    if sibling_text and len(sibling_text) > 1:
-                        return sibling_text
-                
-                # 策略3: 值在表格的下一个单元格中
-                if label_element.parent.name in ['td', 'th']:
-                    next_cell = label_element.parent.find_next_sibling(['td', 'th'])
-                    if next_cell:
-                        cell_text = next_cell.get_text(strip=True)
-                        if cell_text and len(cell_text) > 1:
-                            return cell_text
-                
-                # 策略4: 值在父元素的后续文本中
-                parent = label_element.parent
-                for next_elem in parent.find_next_siblings(limit=3):
-                    if next_elem.get_text(strip=True):
-                        text = next_elem.get_text(strip=True)
-                        if len(text) > 1:
+    def _search_by_labels(self, soup: BeautifulSoup, labels: List[str]) -> Optional[str]:
+        """通过标签搜索值"""
+        for label in labels:
+            # 搜索包含标签的元素
+            elements = soup.find_all(text=re.compile(label))
+            for element in elements:
+                parent = element.parent
+                if parent:
+                    # 查找同级或下级元素中的值
+                    next_sibling = parent.find_next_sibling()
+                    if next_sibling:
+                        text = next_sibling.get_text().strip()
+                        if text and text not in [label, ":", "："]:
                             return text
-            
-        except Exception as e:
-            self.logger.debug(f"标签搜索失败: {label}", error=str(e))
+                    
+                    # 查找父元素的下一个兄弟元素
+                    parent_next = parent.parent.find_next_sibling() if parent.parent else None
+                    if parent_next:
+                        text = parent_next.get_text().strip()
+                        if text and text not in [label, ":", "："]:
+                            return text
         
         return None
     
+    def _extract_report_period(self, soup: BeautifulSoup, fund_report: FundReport):
+        """提取报告期间"""
+        # 搜索报告期间相关的文本
+        period_patterns = [
+            r"报告期间?[：:]?\s*(\d{4})[年-](\d{1,2})[月-](\d{1,2})日?\s*[至到-]\s*(\d{4})[年-](\d{1,2})[月-](\d{1,2})日?",
+            r"(\d{4})[年-](\d{1,2})[月-](\d{1,2})日?\s*[至到-]\s*(\d{4})[年-](\d{1,2})[月-](\d{1,2})日?",
+            r"报告期[：:]?\s*(\d{4})[年-](\d{1,2})[月-](\d{1,2})日?"
+        ]
+        
+        text_content = soup.get_text()
+        
+        for pattern in period_patterns:
+            matches = re.search(pattern, text_content)
+            if matches:
+                groups = matches.groups()
+                if len(groups) >= 6:  # 开始和结束日期
+                    try:
+                        start_date = f"{groups[0]}-{groups[1].zfill(2)}-{groups[2].zfill(2)}"
+                        end_date = f"{groups[3]}-{groups[4].zfill(2)}-{groups[5].zfill(2)}"
+                        fund_report.report_period_start = start_date
+                        fund_report.report_period_end = end_date
+                        return
+                    except (ValueError, IndexError):
+                        continue
+                elif len(groups) >= 3:  # 只有结束日期
+                    try:
+                        end_date = f"{groups[0]}-{groups[1].zfill(2)}-{groups[2].zfill(2)}"
+                        fund_report.report_period_end = end_date
+                        # 推断开始日期（假设为季度报告）
+                        month = int(groups[1])
+                        if month in [3, 6, 9, 12]:
+                            start_month = month - 2
+                            if start_month <= 0:
+                                start_month = 12 + start_month
+                                start_year = int(groups[0]) - 1
+                            else:
+                                start_year = int(groups[0])
+                            start_date = f"{start_year}-{str(start_month).zfill(2)}-01"
+                            fund_report.report_period_start = start_date
+                        return
+                    except (ValueError, IndexError):
+                        continue
+    
     def _extract_table_data(self, soup: BeautifulSoup, fund_report: FundReport):
         """提取表格数据"""
-        try:
-            tables = soup.find_all("table")
+        tables = soup.find_all("table")
+        
+        for table in tables:
+            table_type = self._identify_table_type(table)
             
-            for table in tables:
-                table_type = self._identify_table_type(table)
-                
-                if table_type == "asset_allocation":
-                    fund_report.asset_allocations = self._parse_asset_allocation_table(table)
-                elif table_type == "top_holdings":
-                    fund_report.top_holdings = self._parse_top_holdings_table(table)
-                elif table_type == "industry_allocation":
-                    fund_report.industry_allocations = self._parse_industry_allocation_table(table)
+            if table_type == "asset_allocation":
+                allocations = self._parse_asset_allocation_table(table)
+                if allocations:
+                    fund_report.asset_allocations = allocations
             
-            self.logger.debug("表格数据提取完成",
-                             asset_allocations=len(fund_report.asset_allocations or []),
-                             top_holdings=len(fund_report.top_holdings or []),
-                             industry_allocations=len(fund_report.industry_allocations or []))
+            elif table_type == "top_holdings":
+                holdings = self._parse_top_holdings_table(table)
+                if holdings:
+                    fund_report.top_holdings = holdings
             
-        except Exception as e:
-            self.logger.warning("表格数据提取失败", error=str(e))
+            elif table_type == "industry_allocation":
+                allocations = self._parse_industry_allocation_table(table)
+                if allocations:
+                    fund_report.industry_allocations = allocations
+            
+            elif table_type == "stock_portfolio":
+                holdings = self._parse_stock_portfolio_table(table)
+                if holdings:
+                    if not fund_report.top_holdings:
+                        fund_report.top_holdings = holdings
+                    else:
+                        fund_report.top_holdings.extend(holdings)
+            
+            elif table_type == "bond_portfolio":
+                holdings = self._parse_bond_portfolio_table(table)
+                if holdings:
+                    if not fund_report.top_holdings:
+                        fund_report.top_holdings = holdings
+                    else:
+                        fund_report.top_holdings.extend(holdings)
+            
+            elif table_type == "top_ten_stocks":
+                holdings = self._parse_top_ten_stocks_table(table)
+                if holdings:
+                    fund_report.top_holdings = holdings
     
     def _identify_table_type(self, table: Tag) -> Optional[str]:
-        """识别表格类型 - 简化版本"""
+        """识别表格类型"""
         table_text = table.get_text().lower()
         
-        # 排除明显不相关的表格
-        exclude_keywords = ["关联方", "交易", "费用", "审计", "托管", "会计", "声明"]
-        if any(keyword in table_text for keyword in exclude_keywords):
-            return None
-        
-        # 检查表格行数
-        rows = table.find_all("tr")
-        if len(rows) < 3:
-            return None
-        
-        # 简化的表格类型识别
-        if any(keyword in table_text for keyword in ["资产配置", "投资组合", "大类资产"]):
+        if any(keyword in table_text for keyword in ["资产配置", "资产分布", "投资分布"]):
             return "asset_allocation"
-        elif any(keyword in table_text for keyword in ["前十大", "重仓股", "主要持仓"]):
+        elif any(keyword in table_text for keyword in ["前十大", "前10大", "重仓股票", "主要持仓"]):
             return "top_holdings"
-        elif any(keyword in table_text for keyword in ["行业配置", "行业分布", "申万行业"]):
+        elif any(keyword in table_text for keyword in ["行业配置", "行业分布", "按行业分类"]):
             return "industry_allocation"
+        elif any(keyword in table_text for keyword in ["股票投资组合", "股票明细"]):
+            return "stock_portfolio"
+        elif any(keyword in table_text for keyword in ["债券投资组合", "债券明细"]):
+            return "bond_portfolio"
+        elif any(keyword in table_text for keyword in ["前十名股票", "前10名股票"]):
+            return "top_ten_stocks"
         
         return None
     
@@ -259,7 +264,7 @@ class OptimizedHTMLParser(BaseParser):
             headers = [cell.get_text().strip().lower() for cell in header_row.find_all(["th", "td"])]
             
             # 查找关键列的索引
-            asset_type_idx = self._find_column_index(headers, ["资产", "类别", "类型", "品种"])
+            asset_type_idx = self._find_column_index(headers, ["资产类型", "类型", "品种"])
             value_idx = self._find_column_index(headers, ["市值", "金额", "价值"])
             percentage_idx = self._find_column_index(headers, ["占比", "比例", "百分比"])
             
@@ -282,10 +287,9 @@ class OptimizedHTMLParser(BaseParser):
                 if percentage_idx is not None and percentage_idx < len(cells):
                     percentage = self._parse_decimal(cells[percentage_idx].get_text().strip())
                 
-                if asset_type and (market_value or percentage):
+                if asset_type:
                     allocation = AssetAllocation(
                         asset_type=asset_type,
-                        asset_name=asset_type,
                         market_value=market_value,
                         percentage=percentage
                     )
@@ -295,6 +299,207 @@ class OptimizedHTMLParser(BaseParser):
             self.logger.warning("资产配置表解析失败", error=str(e))
         
         return allocations
+    
+    def _parse_stock_portfolio_table(self, table: Tag) -> List[TopHolding]:
+        """解析股票投资组合表"""
+        holdings = []
+        
+        try:
+            rows = table.find_all("tr")
+            if len(rows) < 2:
+                return holdings
+            
+            # 简化的表头识别
+            header_row = rows[0]
+            headers = [cell.get_text().strip().lower() for cell in header_row.find_all(["th", "td"])]
+            
+            # 查找关键列的索引
+            name_idx = self._find_column_index(headers, ["名称", "证券名称", "股票名称"])
+            code_idx = self._find_column_index(headers, ["代码", "证券代码", "股票代码"])
+            value_idx = self._find_column_index(headers, ["市值", "金额", "价值"])
+            percentage_idx = self._find_column_index(headers, ["占比", "比例", "百分比"])
+            shares_idx = self._find_column_index(headers, ["数量", "股数", "持股数量"])
+            
+            # 解析数据行
+            rank = 1
+            for row in rows[1:]:
+                cells = row.find_all(["td", "th"])
+                if len(cells) < 2:
+                    continue
+                
+                security_name = None
+                security_code = None
+                market_value = None
+                percentage = None
+                shares = None
+                
+                if name_idx is not None and name_idx < len(cells):
+                    security_name = cells[name_idx].get_text().strip()
+                
+                if code_idx is not None and code_idx < len(cells):
+                    security_code = cells[code_idx].get_text().strip()
+                
+                if value_idx is not None and value_idx < len(cells):
+                    market_value = self._parse_decimal(cells[value_idx].get_text().strip())
+                
+                if percentage_idx is not None and percentage_idx < len(cells):
+                    percentage = self._parse_decimal(cells[percentage_idx].get_text().strip())
+                
+                if shares_idx is not None and shares_idx < len(cells):
+                    shares = self._parse_decimal(cells[shares_idx].get_text().strip())
+                
+                if security_name:
+                    holding = TopHolding(
+                        holding_type="股票",
+                        security_code=security_code,
+                        security_name=security_name,
+                        shares=shares,
+                        market_value=market_value,
+                        percentage=percentage,
+                        rank=rank
+                    )
+                    holdings.append(holding)
+                    rank += 1
+            
+        except Exception as e:
+            self.logger.warning("股票投资组合表解析失败", error=str(e))
+        
+        return holdings
+    
+    def _parse_bond_portfolio_table(self, table: Tag) -> List[TopHolding]:
+        """解析债券投资组合表"""
+        holdings = []
+        
+        try:
+            rows = table.find_all("tr")
+            if len(rows) < 2:
+                return holdings
+            
+            # 简化的表头识别
+            header_row = rows[0]
+            headers = [cell.get_text().strip().lower() for cell in header_row.find_all(["th", "td"])]
+            
+            # 查找关键列的索引
+            name_idx = self._find_column_index(headers, ["名称", "证券名称", "债券名称"])
+            code_idx = self._find_column_index(headers, ["代码", "证券代码", "债券代码"])
+            value_idx = self._find_column_index(headers, ["市值", "金额", "价值"])
+            percentage_idx = self._find_column_index(headers, ["占比", "比例", "百分比"])
+            shares_idx = self._find_column_index(headers, ["数量", "面值", "持有数量"])
+            
+            # 解析数据行
+            rank = 1
+            for row in rows[1:]:
+                cells = row.find_all(["td", "th"])
+                if len(cells) < 2:
+                    continue
+                
+                security_name = None
+                security_code = None
+                market_value = None
+                percentage = None
+                shares = None
+                
+                if name_idx is not None and name_idx < len(cells):
+                    security_name = cells[name_idx].get_text().strip()
+                
+                if code_idx is not None and code_idx < len(cells):
+                    security_code = cells[code_idx].get_text().strip()
+                
+                if value_idx is not None and value_idx < len(cells):
+                    market_value = self._parse_decimal(cells[value_idx].get_text().strip())
+                
+                if percentage_idx is not None and percentage_idx < len(cells):
+                    percentage = self._parse_decimal(cells[percentage_idx].get_text().strip())
+                
+                if shares_idx is not None and shares_idx < len(cells):
+                    shares = self._parse_decimal(cells[shares_idx].get_text().strip())
+                
+                if security_name:
+                    holding = TopHolding(
+                        holding_type="债券",
+                        security_code=security_code,
+                        security_name=security_name,
+                        shares=shares,
+                        market_value=market_value,
+                        percentage=percentage,
+                        rank=rank
+                    )
+                    holdings.append(holding)
+                    rank += 1
+            
+        except Exception as e:
+            self.logger.warning("债券投资组合表解析失败", error=str(e))
+        
+        return holdings
+    
+    def _parse_top_ten_stocks_table(self, table: Tag) -> List[TopHolding]:
+        """解析前十名股票表"""
+        holdings = []
+        
+        try:
+            rows = table.find_all("tr")
+            if len(rows) < 2:
+                return holdings
+            
+            # 简化的表头识别
+            header_row = rows[0]
+            headers = [cell.get_text().strip().lower() for cell in header_row.find_all(["th", "td"])]
+            
+            # 查找关键列的索引
+            name_idx = self._find_column_index(headers, ["名称", "证券名称", "股票名称"])
+            code_idx = self._find_column_index(headers, ["代码", "证券代码", "股票代码"])
+            value_idx = self._find_column_index(headers, ["市值", "金额", "价值"])
+            percentage_idx = self._find_column_index(headers, ["占比", "比例", "百分比"])
+            shares_idx = self._find_column_index(headers, ["数量", "股数", "持股数量"])
+            
+            # 解析数据行
+            rank = 1
+            for row in rows[1:]:
+                if rank > 10:  # 限制为前10大
+                    break
+                
+                cells = row.find_all(["td", "th"])
+                if len(cells) < 2:
+                    continue
+                
+                security_name = None
+                security_code = None
+                market_value = None
+                percentage = None
+                shares = None
+                
+                if name_idx is not None and name_idx < len(cells):
+                    security_name = cells[name_idx].get_text().strip()
+                
+                if code_idx is not None and code_idx < len(cells):
+                    security_code = cells[code_idx].get_text().strip()
+                
+                if value_idx is not None and value_idx < len(cells):
+                    market_value = self._parse_decimal(cells[value_idx].get_text().strip())
+                
+                if percentage_idx is not None and percentage_idx < len(cells):
+                    percentage = self._parse_decimal(cells[percentage_idx].get_text().strip())
+                
+                if shares_idx is not None and shares_idx < len(cells):
+                    shares = self._parse_decimal(cells[shares_idx].get_text().strip())
+                
+                if security_name:
+                    holding = TopHolding(
+                        holding_type="股票",
+                        security_code=security_code,
+                        security_name=security_name,
+                        shares=shares,
+                        market_value=market_value,
+                        percentage=percentage,
+                        rank=rank
+                    )
+                    holdings.append(holding)
+                    rank += 1
+            
+        except Exception as e:
+            self.logger.warning("前十名股票表解析失败", error=str(e))
+        
+        return holdings
     
     def _parse_top_holdings_table(self, table: Tag) -> List[TopHolding]:
         """解析前十大持仓表"""

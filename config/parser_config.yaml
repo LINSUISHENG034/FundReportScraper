@@ -1,0 +1,269 @@
+# 基金报告解析器配置文件
+# 基于PHASE_7增强解析计划的专业配置
+
+# XBRL解析配置
+xbrl_parsing:
+  # 解析引擎配置
+  engine:
+    primary: "arelle"  # 主要解析引擎: arelle, python-xbrl
+    fallback: "beautifulsoup"  # 备用解析方法
+    timeout: 60  # 解析超时时间（秒）
+  
+  # 数据提取配置
+  extraction:
+    # 基本信息提取
+    basic_info:
+      fund_code_patterns:
+        - "\\d{6}"  # 6位数字基金代码
+      fund_name_cleanup:
+        - "\\d{4}年.*?报告"  # 移除年度报告标识
+        - "\\d{4}-\\d{2}-\\d{2}"  # 移除日期
+      report_type_mapping:
+        "年度报告": "ANNUAL"
+        "年报": "ANNUAL"
+        "半年报": "SEMI_ANNUAL"
+        "半年度报告": "SEMI_ANNUAL"
+        "Q1": "Q1"
+        "一季": "Q1"
+        "Q2": "Q2"
+        "二季": "Q2"
+        "Q3": "Q3"
+        "三季": "Q3"
+        "Q4": "Q4"
+        "四季": "Q4"
+    
+    # 资产配置提取
+    asset_allocation:
+      table_indicators:
+        - "资产配置"
+        - "投资组合"
+        - "股票投资"
+        - "债券投资"
+      asset_type_mapping:
+        "股票投资": "股票投资"
+        "债券投资": "债券投资"
+        "基金投资": "基金投资"
+        "银行存款": "银行存款"
+        "货币市场工具": "货币市场工具"
+        "买入返售金融资产": "买入返售金融资产"
+        "其他资产": "其他资产"
+        "现金及现金等价物": "现金及现金等价物"
+    
+    # 持仓明细提取
+    top_holdings:
+      table_indicators:
+        - "前十大"
+        - "重仓股"
+        - "持仓明细"
+        - "股票名称"
+      max_holdings: 10
+      required_fields:
+        - "stock_code"
+        - "stock_name"
+    
+    # 行业配置提取
+    industry_allocation:
+      table_indicators:
+        - "行业配置"
+        - "行业分布"
+        - "行业投资"
+      industry_mapping:
+        "金融业": "金融业"
+        "制造业": "制造业"
+        "信息技术": "信息技术"
+        "医疗保健": "医疗保健"
+        "消费": "消费"
+        "能源": "能源"
+        "公用事业": "公用事业"
+        "房地产": "房地产"
+        "材料": "材料"
+        "电信": "电信"
+
+# LLM辅助配置
+llm_assistance:
+  # 是否启用LLM辅助
+  enabled: true
+  
+  # Ollama配置
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "qwen2.5:7b"  # 推荐模型: qwen2.5:7b, llama3.1:8b
+    timeout: 30
+    max_retries: 3
+    
+    # 模型参数
+    parameters:
+      temperature: 0.1  # 降低随机性，提高一致性
+      top_p: 0.9
+      num_predict: 2048
+  
+  # LLM使用场景
+  use_cases:
+    table_structure_analysis: true  # 表格结构分析
+    data_extraction: true          # 数据提取
+    data_validation: true          # 数据验证
+    data_repair: true             # 数据修复
+    reasonableness_check: true    # 合理性检查
+  
+  # LLM调用策略
+  strategy:
+    # 何时使用LLM
+    triggers:
+      - "parsing_confidence_low"    # 解析置信度低
+      - "data_validation_failed"    # 数据验证失败
+      - "complex_table_structure"   # 复杂表格结构
+      - "missing_critical_data"     # 缺失关键数据
+    
+    # 批处理配置
+    batch_processing:
+      enabled: true
+      batch_size: 5
+      max_concurrent: 2
+
+# 数据质量配置
+data_quality:
+  # 质量维度阈值
+  thresholds:
+    completeness:
+      core_fields_fill_rate: 0.95      # 核心字段填充率 ≥ 95%
+      asset_allocation_coverage: 0.90   # 资产配置覆盖率 ≥ 90%
+      top_holdings_count: 5             # 前十大持仓至少5个
+    
+    accuracy:
+      numerical_accuracy: 0.98          # 数值准确率 ≥ 98%
+      format_compliance: 0.95           # 格式合规率 ≥ 95%
+      business_logic_pass: 0.90         # 业务逻辑通过率 ≥ 90%
+    
+    consistency:
+      percentage_sum_tolerance: 0.05    # 百分比总和容差 ≤ 5%
+      cross_field_consistency: 0.98     # 跨字段一致性 ≥ 98%
+      temporal_consistency: 0.85        # 时间序列一致性 ≥ 85%
+    
+    timeliness:
+      max_parsing_time: 30              # 最大解析时间 ≤ 30秒
+      annual_report_time: 60            # 年报解析时间 ≤ 60秒
+  
+  # 验证规则
+  validation_rules:
+    # 格式验证
+    format_validation:
+      fund_code: "^\\d{6}$"
+      stock_code: "^\\d{6}$"
+      percentage_range: [0, 1]
+      amount_min: 0
+    
+    # 业务逻辑验证
+    business_validation:
+      asset_allocation_sum_tolerance: 0.05
+      max_single_holding_percentage: 0.10
+      max_hhi_index: 0.25
+      max_fund_size_change_rate: 0.50
+  
+  # 数据修复策略
+  repair_strategies:
+    auto_repair:
+      enabled: true
+      max_attempts: 3
+      
+      # 修复规则
+      rules:
+        - type: "percentage_normalization"
+          condition: "sum_deviation > 0.05"
+          action: "proportional_adjustment"
+        
+        - type: "missing_percentage_calculation"
+          condition: "has_market_value and missing_percentage"
+          action: "calculate_from_market_value"
+        
+        - type: "format_cleanup"
+          condition: "invalid_format"
+          action: "regex_cleanup"
+    
+    llm_assisted_repair:
+      enabled: true
+      confidence_threshold: 0.8
+      max_repair_attempts: 2
+
+# 性能配置
+performance:
+  # 并发配置
+  concurrency:
+    max_workers: 4
+    max_concurrent_files: 10
+    thread_pool_size: 8
+  
+  # 缓存配置
+  caching:
+    enabled: true
+    cache_size: 1000
+    ttl: 3600  # 缓存生存时间（秒）
+  
+  # 内存管理
+  memory:
+    max_file_size: 50  # MB
+    chunk_size: 1024   # KB
+    gc_threshold: 100  # 处理文件数阈值
+
+# 监控和告警配置
+monitoring:
+  # 质量监控
+  quality_monitoring:
+    enabled: true
+    check_interval: 300  # 检查间隔（秒）
+    
+    # 告警阈值
+    alert_thresholds:
+      min_success_rate: 0.90
+      min_quality_score: 0.80
+      max_avg_parsing_time: 30.0
+      max_error_rate: 0.10
+  
+  # 指标收集
+  metrics_collection:
+    enabled: true
+    retention_days: 30
+    export_format: "json"
+  
+  # 报告生成
+  reporting:
+    daily_report: true
+    weekly_summary: true
+    export_path: "reports/quality"
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # 文件日志
+  file_logging:
+    enabled: true
+    path: "logs/parser.log"
+    max_size: "10MB"
+    backup_count: 5
+  
+  # 结构化日志
+  structured_logging:
+    enabled: true
+    include_context: true
+    sensitive_fields:
+      - "fund_code"
+      - "fund_name"
+
+# 调试配置
+debug:
+  # 是否启用调试模式
+  enabled: false
+  
+  # 调试选项
+  options:
+    save_intermediate_results: false
+    verbose_logging: false
+    profile_performance: false
+    dump_raw_data: false
+  
+  # 测试配置
+  testing:
+    sample_files_path: "tests/fixtures"
+    output_path: "tests/output"
+    compare_with_expected: true

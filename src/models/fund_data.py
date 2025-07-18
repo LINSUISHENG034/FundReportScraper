@@ -16,6 +16,10 @@ from sqlalchemy import (
     Numeric,
     ForeignKey,
     Index,
+    Text,
+    Boolean,
+    Float,
+    JSON,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -61,6 +65,18 @@ class FundReport(Base):
     net_asset_value = Column(Numeric(10, 4), nullable=True)  # 单位净值
     accumulated_nav = Column(Numeric(10, 4), nullable=True)  # 累计净值
 
+    # 解析质量和元数据
+    parsing_method = Column(String(50), nullable=True)  # 解析方法
+    parsing_confidence = Column(Float, nullable=True)  # 解析置信度 (0-1)
+    data_quality_score = Column(Float, nullable=True)  # 数据质量得分 (0-1)
+    validation_status = Column(String(20), nullable=True)  # 验证状态
+    llm_assisted = Column(Boolean, nullable=False, default=False)  # 是否使用LLM辅助
+    
+    # 解析元数据
+    parsing_metadata = Column(JSON, nullable=True)  # 解析过程元数据
+    validation_issues = Column(JSON, nullable=True)  # 验证问题列表
+    data_completeness = Column(JSON, nullable=True)  # 数据完整性详情
+    
     # 时间戳
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
@@ -84,6 +100,16 @@ class FundReport(Base):
         Index("idx_fund_report_period", "fund_code", "report_year", "report_quarter"),
         Index("idx_fund_report_upload", "upload_info_id"),
     )
+
+    @property
+    def report_date(self):
+        """报告日期（report_period_end的别名）"""
+        return self.report_period_end
+    
+    @report_date.setter
+    def report_date(self, value):
+        """设置报告日期"""
+        self.report_period_end = value
 
     def __repr__(self):
         return f"<FundReport(fund_code='{self.fund_code}', period='{self.report_period_end}', nav={self.net_asset_value})>"

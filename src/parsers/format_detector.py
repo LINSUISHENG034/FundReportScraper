@@ -105,6 +105,9 @@ class FormatDetector:
         
         # 基于文件扩展名的辅助判断
         if file_path:
+            from pathlib import Path
+            if isinstance(file_path, str):
+                file_path = Path(file_path)
             ext = file_path.suffix.lower()
             if ext in ['.xbrl', '.xml']:
                 # 可能是XBRL但格式不标准
@@ -160,6 +163,9 @@ class FormatDetector:
         
         # 文件扩展名加成
         if file_path:
+            from pathlib import Path
+            if isinstance(file_path, str):
+                file_path = Path(file_path)
             ext = file_path.suffix.lower()
             if ext in ['.xbrl', '.xml']:
                 confidence_scores[DocumentFormat.XBRL] += 0.2
@@ -246,7 +252,7 @@ class FormatDetector:
             "detected_format": detected_format,
             "confidence_scores": confidence_scores,
             "is_fund_report": is_fund_report,
-            "file_extension": file_path.suffix.lower() if file_path else None,
+            "file_extension": file_path.suffix.lower() if file_path and hasattr(file_path, 'suffix') else (Path(file_path).suffix.lower() if file_path else None),
             "content_length": len(content),
             "sample_length": min(10000, len(content))
         }
