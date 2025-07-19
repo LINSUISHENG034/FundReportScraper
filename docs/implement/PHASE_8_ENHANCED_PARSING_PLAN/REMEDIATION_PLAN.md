@@ -66,7 +66,9 @@
     1.  研究并确定是使用Arelle的命令行工具还是Python库。命令行更稳定解耦，推荐优先考虑。
     2.  编写Python代码，通过`subprocess`调用Arelle命令行，并传递文件路径和输出JSON的参数。
     3.  编写逻辑，将Arelle输出的JSON数据映射并填充到我们的`FundReport` Pydantic模型中。
-    4.  **验证**: 使用`tests/fixtures/`下的纯`.xbrl`文件对`ArelleParser`进行单元测试，确保其能正确解析。
+        *   **重要警告**: 此步骤并非简单的键值映射。Arelle的输出是基于XBRL上下文（Context）和事实（Fact）的复杂结构。映射逻辑必须能够处理维度、表格和时间序列数据。
+        *   **权威指南**: 此映射逻辑的实现，**必须严格遵循** `PHASE_1.1_SPRINT_PLAN.md` 中定义的精确编码和上下文解析策略。该文档是本阶段任务的唯一技术实现标准。
+    4.  **验证**: 使用`tests/fixtures/`下的纯`.xbrl`文件对`ArelleParser`进行单元测试，确保其能正确解析，特别是能够完整解析出财报的资产配置、前十大持仓和行业分配等核心表格数据。
 
 ### **阶段二：开发 `iXBRLExtractor`**
 *   **任务**: 创建`iXBRLExtractor`，实现从iXBRL文件中剥离XBRL数据的功能。

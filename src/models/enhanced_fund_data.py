@@ -15,16 +15,9 @@ from pydantic import BaseModel, Field, validator
 from sqlalchemy import Column, Integer, String, DateTime, Date, Numeric, ForeignKey, Text, Boolean, Float, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+from src.core.fund_search_parameters import ReportType
 
 Base = declarative_base()
-
-
-class ReportType(str, Enum):
-    """Report type enumeration"""
-    ANNUAL = "annual"
-    SEMI_ANNUAL = "semi_annual"
-    QUARTERLY = "quarterly"
-    MONTHLY = "monthly"
 
 
 class AssetType(str, Enum):

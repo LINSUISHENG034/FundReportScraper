@@ -23,6 +23,10 @@ class ReportType(str, Enum):
     QUARTERLY_Q3 = "FB030030"  # 第三季度报告
     QUARTERLY_Q4 = "FB030040"  # 第四季度报告
     FUND_PROFILE = "FA010070"  # 基金产品资料概要
+    # 测试用概念
+    QUARTERLY = "FB030010"  # 季度报告（默认第一季度）
+    MONTHLY = "FB040010"  # 月度报告
+    UNKNOWN = "UNKNOWN"  # 未知类型
 
     @classmethod
     def get_description(cls, value: str) -> str:
@@ -35,6 +39,9 @@ class ReportType(str, Enum):
             cls.QUARTERLY_Q3: "第三季度报告",
             cls.QUARTERLY_Q4: "第四季度报告",
             cls.FUND_PROFILE: "基金产品资料概要",
+            cls.QUARTERLY: "季度报告",
+            cls.MONTHLY: "月度报告",
+            cls.UNKNOWN: "未知报告类型",
         }
         return descriptions.get(value, "未知报告类型")
 

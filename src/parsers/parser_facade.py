@@ -15,7 +15,7 @@ from src.core.logging import get_logger
 from src.models.fund_data import FundReport
 from src.parsers.base_parser import BaseParser, ParseResult, ParserType
 from src.parsers.format_detector import FormatDetector, DocumentFormat
-from src.parsers.fund_xbrl_parser import FundXBRLParser
+# from src.parsers.fund_xbrl_parser import FundXBRLParser  # 暂时注释，文件不存在
 from src.parsers.data_quality import QualityMetricsCollector, QualityAlertSystem
 from src.parsers.llm_assistant import OllamaLLMAssistant, DataRepairService, DataQualityValidator
 
@@ -124,13 +124,22 @@ class XBRLParserFacade:
     
     def _initialize_parsers(self):
         """初始化所有可用的解析器"""
+        # try:
+        #     # 注册基金专业XBRL解析器
+        #     fund_parser = FundXBRLParser(use_llm_assist=self.llm_assistant is not None)
+        #     self.register_parser(ParserType.XBRL_NATIVE, fund_parser)
+        #     self.logger.info("已注册基金专业XBRL解析器")
+        # except Exception as e:
+        #     self.logger.error("注册基金XBRL解析器失败", error=str(e))
+        
+        # 暂时注册ArelleParser作为XBRL_NATIVE解析器
         try:
-            # 注册基金专业XBRL解析器
-            fund_parser = FundXBRLParser(use_llm_assist=self.llm_assistant is not None)
-            self.register_parser(ParserType.XBRL_NATIVE, fund_parser)
-            self.logger.info("已注册基金专业XBRL解析器")
+            from src.parsers.arelle_parser import ArelleParser
+            arelle_parser = ArelleParser()
+            self.register_parser(ParserType.XBRL_NATIVE, arelle_parser)
+            self.logger.info("已注册Arelle XBRL解析器")
         except Exception as e:
-            self.logger.error("注册基金XBRL解析器失败", error=str(e))
+            self.logger.error("注册Arelle XBRL解析器失败", error=str(e))
         
         try:
             # 注册传统HTML解析器作为备用

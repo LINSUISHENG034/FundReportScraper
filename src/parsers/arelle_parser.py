@@ -15,12 +15,14 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime, date
 
 from src.core.logging import get_logger
+from src.core.fund_search_parameters import ReportType
 from src.models.enhanced_fund_data import (
     ComprehensiveFundReport, BasicFundInfo, FinancialMetrics, 
-    ReportMetadata, AssetAllocationData, HoldingData, IndustryAllocationData,
-    ReportType, AssetType, ValidationStatus
+    ReportMetadata, AssetAllocationData, HoldingData,
+    IndustryAllocationData, AssetType
 )
 from src.parsers.base_parser import BaseParser, ParseResult, ParserType
+from src.parsers.data_quality import AssetAllocationCalculator
 
 
 class ArelleParser(BaseParser):
@@ -33,31 +35,49 @@ class ArelleParser(BaseParser):
     def __init__(self):
         super().__init__(ParserType.XBRL_NATIVE)
         self.logger = get_logger("parser.arelle_cmdline")
+        self.asset_calculator = AssetAllocationCalculator()
         
-        # XBRL概念到基金报告字段的映射规则
+        # 基于官方XBRL分类标准框架的概念映射规则
+        # 根据PHASE_1.1_SPRINT_PLAN.md重构，使用精确的XBRL元素编码
+        # NOTE: This mapping is now based on the precise codes from the official XBRL taxonomy,
+        # as required by PHASE_1.1_SPRINT_PLAN.md. The logic consuming this dictionary
+        # must be updated to perform exact matching on concept codes, not fuzzy text matching.
         self.concept_mappings = {
-            "fund_code": [
-                "FundCode", "基金代码", "基金主代码", "fund:FundCode",
-                "基金简称代码", "ProductCode", "dei:EntityRegistrantName"
-            ],
-            "fund_name": [
-                "FundName", "基金名称", "基金全称", "fund:FundName",
-                "ProductName", "基金简称", "dei:DocumentPeriodEndDate"
-            ],
-            "net_asset_value": [
-                "NetAssetValue", "NetAssetValuePerShare", "份额净值",
-                "基金份额净值", "单位净值", "fund:NetAssetValue",
-                "NAV", "UnitNetAssetValue", "csrc-mf-general:NetAssetValuePerShare"
-            ],
-            "total_net_assets": [
-                "TotalNetAssets", "NetAssets", "基金资产净值",
-                "资产净值", "fund:TotalNetAssets", "TotalAssets",
-                "csrc-mf-general:TotalNetAssets"
-            ],
-            "total_shares": [
-                "TotalShares", "基金总份额", "fund:TotalShares",
-                "csrc-mf-general:TotalShares"
-            ]
+            # §2.1 基金基本情况
+            "fund_code": ["0012"],
+            "fund_name": ["0009", "0011"], # 基金名称, 基金简称
+            "fund_manager": ["0186"],
+
+            # §3.1 主要财务指标
+            "net_asset_value": ["0506"], # 期末基金份额净值
+            "total_net_assets": ["0505"], # 期末基金资产净值
+            "period_profit": ["0497"], # 本期利润
+
+            # §4.1 报告元数据
+            "report_period_start": ["dei:DocumentPeriodStartDate", "2023"],
+            "report_period_end": ["dei:DocumentPeriodEndDate", "2024"],
+            "report_type_name": ["dei:DocumentType", "0002"],
+
+            # §8.1 期末基金资产组合情况 (大类资产配置)
+            "asset_equity": ["1051"], # 权益投资-股票
+            "asset_bond": ["1063"], # 固定收益投资-债券
+            "asset_cash": ["1086"], # 银行存款和结算备付金合计
+            "asset_total": ["1090"], # 合计
+
+            # §8.2 按行业分类的股票投资组合
+            "industry_table": "Table-8.2",
+            "industry_name": [], # Dimension, not a fact
+            "industry_fair_value": [str(c) for c in list(range(1100, 1170, 2)) + [2968, 2971, 2974, 2977, 2980, 2983, 2986, 2989, 2992, 2995, 2998, 3001, 3004, 3007, 3010, 3013]],
+            "industry_percentage": [str(c) for c in list(range(1101, 1171, 2)) + [2969, 2972, 2975, 2978, 2981, 2984, 2987, 2990, 2993, 2996, 2999, 3002, 3005, 3008, 3011, 3014]],
+
+            # §8.3 前十名股票投资明细
+            "holdings_table": "Table-8.3.1",
+            "holding_rank": ["1375"],
+            "holding_code": ["1376"],
+            "holding_name": ["1379"],
+            "holding_shares": ["1382"],
+            "holding_fair_value": ["1383"],
+            "holding_percentage": ["1384"],
         }
         
         # 检查Arelle命令行工具是否可用
@@ -164,8 +184,60 @@ class ArelleParser(BaseParser):
             self.logger.error(f"XBRL解析异常: {str(e)}")
             return self._create_error_result(f"XBRL解析异常: {str(e)}")
     
+    def _extract_facts_with_native_parser(self, file_path: str) -> Optional[List[Dict]]:
+        """使用项目内置的XBRL解析器提取事实
+        
+        Args:
+            file_path: XBRL文件路径
+            
+        Returns:
+            Optional[List[Dict]]: 事实列表，如果失败则返回None
+        """
+        try:
+            from lxml import etree
+            from src.parsers.xbrl import FactExtractor
+            import html
+            
+            # 使用lxml解析XBRL文件
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 处理HTML实体
+            content = content.replace('&nbsp;', ' ')
+            content = content.replace('&amp;', '&')
+            content = content.replace('&lt;', '<')
+            content = content.replace('&gt;', '>')
+            content = content.replace('&quot;', '"')
+            content = content.replace('&apos;', "'")
+            
+            # 解析XML文档
+            parser = etree.XMLParser(recover=True, strip_cdata=False)
+            doc = etree.fromstring(content.encode('utf-8'), parser)
+            
+            # 使用FactExtractor提取事实
+            fact_extractor = FactExtractor(doc)
+            facts = fact_extractor.extract_facts()
+            
+            # 转换为与Arelle兼容的格式
+            converted_facts = []
+            for fact in facts:
+                converted_fact = {
+                    'concept': fact.get('name', ''),
+                    'value': str(fact.get('value', '')),
+                    'context': fact.get('contextRef', ''),
+                    'unit': fact.get('unitRef', '')
+                }
+                converted_facts.append(converted_fact)
+            
+            self.logger.info(f"使用内置解析器成功提取 {len(converted_facts)} 个事实")
+            return converted_facts
+            
+        except Exception as e:
+            self.logger.error(f"使用内置解析器提取事实失败: {str(e)}")
+            return None
+    
     def _run_arelle_command(self, file_path: str) -> Optional[str]:
-        """执行Arelle命令行工具
+        """执行XBRL事实提取（优先使用内置解析器，Arelle作为备用）
         
         Args:
             file_path: XBRL文件路径
@@ -173,6 +245,14 @@ class ArelleParser(BaseParser):
         Returns:
             Optional[str]: 事实列表的JSON字符串，如果失败则返回None
         """
+        # 首先尝试使用内置的XBRL解析器
+        facts = self._extract_facts_with_native_parser(file_path)
+        if facts:
+            return json.dumps(facts, ensure_ascii=False)
+        
+        # 如果内置解析器失败，尝试使用Arelle作为备用
+        self.logger.warning("内置解析器失败，尝试使用Arelle备用方案")
+        
         try:
             # 创建临时日志文件
             with tempfile.NamedTemporaryFile(
@@ -183,42 +263,17 @@ class ArelleParser(BaseParser):
                 log_file_path = log_file.name
             
             try:
-                # 构建Arelle命令
+                # 获取项目根目录
+                project_root = Path(__file__).parent.parent.parent
+                script_path = project_root / "scripts" / "arelle_extract_facts.py"
+                
+                # 构建命令调用独立脚本
                 cmd = [
-                    "poetry", "run", "python", "-c",
-                    f"""
-import sys
-sys.path.insert(0, '.')
-try:
-    from arelle import Cntlr, ModelManager, FileSource
-    from arelle.ModelXbrl import ModelXbrl
-    import json
-    
-    # 初始化Arelle控制器
-    cntlr = Cntlr.Cntlr(logFileName='{log_file_path}')
-    model_manager = ModelManager.initialize(cntlr)
-    
-    # 加载XBRL文档
-    file_source = FileSource.FileSource('{file_path}')
-    model_xbrl = model_manager.load(file_source)
-    
-    if model_xbrl and model_xbrl.modelDocument:
-        facts = []
-        for fact in model_xbrl.facts:
-            fact_data = {{
-                'concept': fact.concept.name if fact.concept else '',
-                'value': str(fact.value) if hasattr(fact, 'value') else str(fact),
-                'context': fact.contextID if hasattr(fact, 'contextID') else '',
-                'unit': fact.unitID if hasattr(fact, 'unitID') else ''
-            }}
-            facts.append(fact_data)
-        
-        print(json.dumps(facts, ensure_ascii=False, indent=2))
-    else:
-        print('{{"error": "无法加载XBRL文档"}}')    
-except Exception as e:
-    print(f'{{"error": "解析异常: {{str(e)}}"}}')    
-"""
+                    "poetry", "run", "python", 
+                    str(script_path),
+                    file_path,
+                    "--log-file", log_file_path,
+                    "--output-format", "json"
                 ]
                 
                 # 执行命令
@@ -230,7 +285,14 @@ except Exception as e:
                 )
                 
                 if result.returncode == 0 and result.stdout.strip():
-                    return result.stdout.strip()
+                    # 解析脚本输出
+                    output_data = json.loads(result.stdout.strip())
+                    if "facts" in output_data:
+                        self.logger.info("Arelle备用方案成功")
+                        return json.dumps(output_data["facts"], ensure_ascii=False)
+                    elif "error" in output_data:
+                        self.logger.error(f"Arelle脚本错误: {output_data['error']}")
+                        return None
                 else:
                     self.logger.error(
                         f"Arelle命令执行失败: {result.stderr}"
@@ -246,6 +308,9 @@ except Exception as e:
                     
         except subprocess.TimeoutExpired:
             self.logger.error("Arelle命令执行超时")
+            return None
+        except json.JSONDecodeError as e:
+            self.logger.error(f"解析Arelle脚本输出时出错: {str(e)}")
             return None
         except Exception as e:
             self.logger.error(f"执行Arelle命令时出错: {str(e)}")
@@ -275,9 +340,9 @@ except Exception as e:
             basic_info_data = {}
             financial_data = {}
             metadata_data = {
-                'report_type': ReportType.QUARTERLY,  # 默认值
-                'report_period_start': date.today(),
-                'report_period_end': date.today(),
+                'report_type': ReportType.QUARTERLY,  # 默认值，将被动态解析覆盖
+                'report_period_start': date.today(),  # 默认值，将被动态解析覆盖
+                'report_period_end': date.today(),  # 默认值，将被动态解析覆盖
                 'report_year': date.today().year,
                 'upload_info_id': f"arelle_parsed_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                 'parsing_method': 'arelle_cmdline',
@@ -301,6 +366,17 @@ except Exception as e:
                 
                 # 映射财务指标
                 self._map_financial_metrics(concept, value, financial_data)
+                
+                # 映射报告元数据
+                self._map_metadata(concept, value, metadata_data)
+        
+            # 基于上下文推断缺失的元数据
+            metadata_data = self._infer_missing_metadata(metadata_data)
+            
+            # 映射复杂数据结构
+            asset_allocations = self._map_asset_allocations(facts_data)
+            top_holdings = self._map_top_holdings(facts_data)
+            industry_allocations = self._map_industry_allocations(facts_data)
             
             # 构建基金报告模型
             try:
@@ -316,12 +392,19 @@ except Exception as e:
                     total_shares=financial_data.get('total_shares')
                 )
                 
+                # 确保报告类型不为None
+                if not metadata_data.get('report_type'):
+                    metadata_data['report_type'] = ReportType.UNKNOWN
+                
                 report_metadata = ReportMetadata(**metadata_data)
                 
                 fund_report = ComprehensiveFundReport(
                     basic_info=basic_info,
                     financial_metrics=financial_metrics,
                     report_metadata=report_metadata,
+                    asset_allocations=asset_allocations,
+                    top_holdings=top_holdings,
+                    industry_allocations=industry_allocations,
                     parsed_at=datetime.now()
                 )
                 
@@ -339,57 +422,71 @@ except Exception as e:
             return None
     
     def _map_basic_info(self, concept: str, value: str, data_dict: Dict[str, Any]):
-        """映射基本信息字段"""
-        concept_lower = concept.lower()
-        
-        # 映射基金代码
-        if not data_dict.get('fund_code'):
-            for pattern in self.concept_mappings['fund_code']:
-                if pattern.lower() in concept_lower:
-                    cleaned_value = self._clean_text_value(value)
-                    if cleaned_value and cleaned_value.isdigit():
-                        data_dict['fund_code'] = cleaned_value
-                        break
-        
-        # 映射基金名称
-        if not data_dict.get('fund_name'):
-            for pattern in self.concept_mappings['fund_name']:
-                if pattern.lower() in concept_lower:
-                    cleaned_value = self._clean_text_value(value)
-                    if cleaned_value and len(cleaned_value) > 2:
-                        data_dict['fund_name'] = cleaned_value
-                        break
-    
+        """映射基本信息字段（基于精确编码匹配）"""
+        if not data_dict.get('fund_code') and self._matches_concept(concept, 'fund_code'):
+            cleaned_value = self._clean_text_value(value)
+            if cleaned_value and cleaned_value.isdigit():
+                data_dict['fund_code'] = cleaned_value
+
+        if not data_dict.get('fund_name') and self._matches_concept(concept, 'fund_name'):
+            cleaned_value = self._clean_text_value(value)
+            if cleaned_value and len(cleaned_value) > 2:
+                data_dict['fund_name'] = cleaned_value
+
+        if not data_dict.get('fund_manager') and self._matches_concept(concept, 'fund_manager'):
+            cleaned_value = self._clean_text_value(value)
+            if cleaned_value and len(cleaned_value) > 2:
+                data_dict['fund_manager'] = cleaned_value
+
     def _map_financial_metrics(self, concept: str, value: str, data_dict: Dict[str, Any]):
-        """映射财务指标字段"""
-        concept_lower = concept.lower()
+        """映射财务指标字段（基于精确编码匹配）"""
+        if not data_dict.get('net_asset_value') and self._matches_concept(concept, 'net_asset_value'):
+            decimal_value = self._parse_decimal(value)
+            if decimal_value is not None and decimal_value > 0:
+                data_dict['net_asset_value'] = decimal_value
+
+        if not data_dict.get('total_net_assets') and self._matches_concept(concept, 'total_net_assets'):
+            decimal_value = self._parse_decimal(value)
+            if decimal_value is not None and decimal_value > 0:
+                data_dict['total_net_assets'] = decimal_value
         
-        # 映射净值
-        if not data_dict.get('net_asset_value'):
-            for pattern in self.concept_mappings['net_asset_value']:
-                if pattern.lower() in concept_lower:
-                    decimal_value = self._parse_decimal(value)
-                    if decimal_value and decimal_value > 0:
-                        data_dict['net_asset_value'] = decimal_value
-                        break
+        if not data_dict.get('period_profit') and self._matches_concept(concept, 'period_profit'):
+            decimal_value = self._parse_decimal(value)
+            if decimal_value is not None:
+                data_dict['period_profit'] = decimal_value
+
+    def _map_metadata(self, concept: str, value: str, data_dict: Dict[str, Any]):
+        """动态映射报告元数据字段（基于精确编码匹配）"""
+        if not data_dict.get('report_period_end_parsed') and self._matches_concept(concept, 'report_period_end'):
+            parsed_date = self._parse_date(value)
+            if parsed_date:
+                data_dict['report_period_end'] = parsed_date
+                data_dict['report_period_end_parsed'] = True
+                data_dict['report_year'] = parsed_date.year
+
+        if not data_dict.get('report_period_start_parsed') and self._matches_concept(concept, 'report_period_start'):
+            parsed_date = self._parse_date(value)
+            if parsed_date:
+                data_dict['report_period_start'] = parsed_date
+                data_dict['report_period_start_parsed'] = True
+
+        if not data_dict.get('report_type_parsed') and self._matches_concept(concept, 'report_type_name'):
+            # 对于报告类型，我们依然可以从值中推断，因为编码本身可能不包含类型信息
+            report_type = self._parse_report_type(value)
+            if report_type and report_type != ReportType.UNKNOWN:
+                data_dict['report_type'] = report_type
+                data_dict['report_type_parsed'] = True
         
-        # 映射总净资产
-        if not data_dict.get('total_net_assets'):
-            for pattern in self.concept_mappings['total_net_assets']:
-                if pattern.lower() in concept_lower:
-                    decimal_value = self._parse_decimal(value)
-                    if decimal_value and decimal_value > 0:
-                        data_dict['total_net_assets'] = decimal_value
-                        break
-        
-        # 映射总份额
-        if not data_dict.get('total_shares'):
-            for pattern in self.concept_mappings['total_shares']:
-                if pattern.lower() in concept_lower:
-                    decimal_value = self._parse_decimal(value)
-                    if decimal_value and decimal_value > 0:
-                        data_dict['total_shares'] = decimal_value
-                        break
+        # 映射文档标题（用于推断报告类型）
+        if 'title' in concept.lower() or '标题' in concept.lower():
+            title = self._clean_text_value(value)
+            if title:
+                data_dict['document_title'] = title
+                if not data_dict.get('report_type_parsed'):
+                    inferred_type = self._parse_report_type(title)
+                    if inferred_type and inferred_type != ReportType.UNKNOWN:
+                        data_dict['report_type'] = inferred_type
+                        data_dict['report_type_parsed'] = True
     
     def _clean_text_value(self, value: str) -> str:
         """清理文本值"""
@@ -409,36 +506,837 @@ except Exception as e:
         except (InvalidOperation, ValueError):
             return None
     
+    def _parse_date(self, value: str) -> Optional[date]:
+        """解析日期值"""
+        if not value:
+            return None
+        
+        try:
+            # 尝试多种日期格式
+            date_formats = [
+                '%Y-%m-%d',
+                '%Y/%m/%d',
+                '%Y年%m月%d日',
+                '%Y-%m-%d %H:%M:%S',
+                '%Y/%m/%d %H:%M:%S'
+            ]
+            
+            cleaned_value = str(value).strip()
+            for fmt in date_formats:
+                try:
+                    parsed_datetime = datetime.strptime(cleaned_value, fmt)
+                    return parsed_datetime.date()
+                except ValueError:
+                    continue
+            
+            # 如果标准格式都失败，尝试ISO格式
+            from dateutil.parser import parse
+            parsed_datetime = parse(cleaned_value)
+            return parsed_datetime.date()
+            
+        except Exception:
+            return None
+    
+    def _parse_report_type(self, value: str) -> Optional[ReportType]:
+        """
+        动态解析报告类型
+        基于PHASE_1.1_SPRINT_PLAN.md重构，支持更多报告类型识别模式
+        """
+        if not value:
+            return ReportType.UNKNOWN
+        
+        value_lower = str(value).lower()
+        
+        # 注意：检查顺序很重要，更具体的关键词要先检查
+        if any(keyword in value_lower for keyword in ['半年报', 'semi annual', 'semi-annual', '中期', '中报']):
+            return ReportType.SEMI_ANNUAL
+        elif any(keyword in value_lower for keyword in ['季报', 'quarter', 'quarterly', '季度', '一季', '二季', '三季', '四季']):
+            return ReportType.QUARTERLY
+        elif any(keyword in value_lower for keyword in ['月报', 'monthly', '月度']):
+            return ReportType.MONTHLY
+        elif any(keyword in value_lower for keyword in ['年报', 'annual', '年度']):
+            return ReportType.ANNUAL
+        
+        return ReportType.UNKNOWN
+    
+    def _infer_report_type_from_period(self, start_date: date, end_date: date) -> ReportType:
+        """
+        基于报告期间推断报告类型
+        
+        Args:
+            start_date: 报告期开始日期
+            end_date: 报告期结束日期
+            
+        Returns:
+            推断的报告类型
+        """
+        try:
+            # 计算期间月数
+            period_months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+            
+            if period_months >= 11:  # 年报
+                return ReportType.ANNUAL
+            elif period_months >= 5:  # 半年报
+                return ReportType.SEMI_ANNUAL
+            elif period_months >= 2:  # 季报
+                return ReportType.QUARTERLY
+            else:  # 月报
+                return ReportType.MONTHLY
+                
+        except Exception:
+            return ReportType.UNKNOWN
+    
+    def _map_asset_allocations(self, facts_data: List[Dict]) -> List[AssetAllocationData]:
+        """
+        基于上下文的表格数据解析映射资产配置数据
+        基于PHASE_1.1_SPRINT_PLAN.md重构，支持更精确的资产配置数据识别
+        
+        Args:
+            facts_data: XBRL事实数据列表
+            
+        Returns:
+            资产配置数据列表
+        """
+        asset_allocations = []
+        
+        try:
+            # 按上下文分组资产配置数据，支持表格结构识别
+            allocations_by_context = {}
+            table_contexts = set()
+            
+            # 第一遍：识别资产配置相关的上下文
+            for fact in facts_data:
+                if not isinstance(fact, dict):
+                    continue
+                    
+                concept = fact.get('concept', '')
+                context = fact.get('context', '')
+                
+                if self._is_asset_concept(concept):
+                    table_contexts.add(context)
+            
+            # 第二遍：提取资产配置数据
+            for fact in facts_data:
+                if not isinstance(fact, dict):
+                    continue
+                    
+                concept = fact.get('concept', '')
+                value = fact.get('value', '')
+                context = fact.get('context', '')
+                
+                if not value or not context or context not in table_contexts:
+                    continue
+                
+                # 初始化上下文
+                if context not in allocations_by_context:
+                    allocations_by_context[context] = {
+                        'asset_type': '',
+                        'asset_name': '',
+                        'market_value': 0.0,
+                        'percentage': 0.0,
+                        'context_id': context
+                    }
+                
+                # 映射资产配置字段
+                self._map_asset_field(concept, value, allocations_by_context[context])
+            
+            # 构建和验证资产配置对象
+            for context, allocation_data in allocations_by_context.items():
+                if self._is_valid_asset_allocation(allocation_data):
+                    asset_allocation = AssetAllocationData(
+                        asset_type=allocation_data['asset_type'],
+                        asset_name=allocation_data['asset_name'],
+                        market_value=allocation_data['market_value'],
+                        percentage=allocation_data['percentage']
+                    )
+                    asset_allocations.append(asset_allocation)
+            
+            # 如果没有找到基于上下文的数据，尝试聚合方式
+            if not asset_allocations:
+                asset_allocations = self._map_asset_allocations_aggregated(facts_data)
+            
+            # 使用AssetAllocationCalculator计算百分比
+            if asset_allocations:
+                asset_allocations = self.asset_calculator.calculate_percentages(asset_allocations)
+            
+            return asset_allocations
+            
+        except Exception as e:
+            self.logger.error(f"映射资产配置数据时出错: {str(e)}")
+            return []
+    
+    def _is_asset_concept(self, concept: str) -> bool:
+        """
+        判断概念是否与资产配置相关
+        
+        Args:
+            concept: XBRL概念名称
+            
+        Returns:
+            是否为资产配置相关概念
+        """
+        asset_keys = ['stock_investment', 'bond_investment', 'cash_and_equivalents', 'other_investments']
+        
+        for key in asset_keys:
+            if self._matches_concept(concept, key):
+                return True
+        
+        # 额外的资产配置识别模式
+        concept_lower = concept.lower()
+        asset_patterns = [
+            '资产', '投资', 'asset', 'investment', '配置', 
+            '股票', '债券', '现金', '基金', '衍生品'
+        ]
+        
+        return any(pattern in concept_lower for pattern in asset_patterns)
+    
+    def _map_asset_field(self, concept: str, value: str, allocation_data: Dict[str, Any]):
+        """
+        映射单个资产配置字段
+        
+        Args:
+            concept: XBRL概念名称
+            value: 字段值
+            allocation_data: 资产配置数据字典
+        """
+        # 确定资产类型和名称
+        asset_type, asset_name = self._determine_asset_type_and_name(concept)
+        if asset_type:
+            allocation_data['asset_type'] = asset_type
+            allocation_data['asset_name'] = asset_name
+        
+        # 映射市值和百分比
+        decimal_value = self._parse_decimal(value)
+        if decimal_value is not None:
+            # 判断是市值还是百分比
+            if self._is_percentage_concept(concept, value):
+                # 处理百分比格式
+                if decimal_value > 1:
+                    decimal_value = decimal_value / 100
+                allocation_data['percentage'] = decimal_value
+            else:
+                # 市值数据
+                if decimal_value > 0:
+                    allocation_data['market_value'] = decimal_value
+    
+    def _determine_asset_type_and_name(self, concept: str) -> tuple:
+        """
+        根据概念确定资产类型和名称
+        
+        Args:
+            concept: XBRL概念名称
+            
+        Returns:
+            (资产类型, 资产名称) 元组
+        """
+        concept_lower = concept.lower()
+        
+        # 股票相关
+        if self._matches_concept(concept, 'stock_investment'):
+            return (AssetType.STOCK, '股票投资')
+        
+        # 债券相关
+        if self._matches_concept(concept, 'bond_investment'):
+            return (AssetType.BOND, '债券投资')
+        
+        # 现金相关
+        if self._matches_concept(concept, 'cash_and_equivalents'):
+            return (AssetType.CASH, '现金及现金等价物')
+        
+        # 其他投资
+        if self._matches_concept(concept, 'other_investments'):
+            return (AssetType.OTHER, '其他投资')
+        
+        return ('', '')
+    
+    def _is_percentage_concept(self, concept: str, value: str) -> bool:
+        """
+        判断是否为百分比概念
+        
+        Args:
+            concept: XBRL概念名称
+            value: 字段值
+            
+        Returns:
+            是否为百分比
+        """
+        concept_lower = concept.lower()
+        value_str = str(value).lower()
+        
+        # 概念名称包含百分比关键词
+        percentage_keywords = ['比例', 'percentage', 'ratio', 'percent', '占比', '百分比']
+        if any(keyword in concept_lower for keyword in percentage_keywords):
+            return True
+        
+        # 值包含百分号
+        if '%' in value_str:
+            return True
+        
+        return False
+    
+    def _is_valid_asset_allocation(self, allocation_data: Dict[str, Any]) -> bool:
+        """
+        验证资产配置数据是否有效
+        
+        Args:
+            allocation_data: 资产配置数据字典
+            
+        Returns:
+            是否为有效资产配置
+        """
+        # 必须有资产类型
+        has_type = bool(allocation_data.get('asset_type'))
+        
+        # 必须有市值或比例信息
+        has_value = bool(allocation_data.get('market_value', 0) > 0 or allocation_data.get('percentage', 0) > 0)
+        
+        return has_type and has_value
+    
+    def _map_asset_allocations_aggregated(self, facts_data: List[Dict]) -> List[AssetAllocationData]:
+        """
+        聚合方式映射资产配置数据（备用方案）
+        
+        Args:
+            facts_data: XBRL事实数据列表
+            
+        Returns:
+            资产配置数据列表
+        """
+        # 用于存储资产配置数据的临时字典
+        assets_data = {
+            AssetType.STOCK: {'market_value': Decimal('0'), 'percentage': Decimal('0'), 'name': '股票投资'},
+            AssetType.BOND: {'market_value': Decimal('0'), 'percentage': Decimal('0'), 'name': '债券投资'},
+            AssetType.CASH: {'market_value': Decimal('0'), 'percentage': Decimal('0'), 'name': '现金及现金等价物'},
+            AssetType.OTHER: {'market_value': Decimal('0'), 'percentage': Decimal('0'), 'name': '其他投资'}
+        }
+        
+        for fact in facts_data:
+            if not isinstance(fact, dict):
+                continue
+            
+            concept = fact.get('concept', '')
+            value = fact.get('value', '')
+            
+            if not concept or not value:
+                continue
+            
+            decimal_value = self._parse_decimal(value)
+            if not decimal_value:
+                continue
+            
+            # 确定资产类型
+            asset_type, _ = self._determine_asset_type_and_name(concept)
+            if not asset_type or asset_type not in assets_data:
+                continue
+            
+            # 判断是市值还是百分比
+            if self._is_percentage_concept(concept, value):
+                if decimal_value > 1:
+                    decimal_value = decimal_value / 100
+                assets_data[asset_type]['percentage'] = decimal_value
+            else:
+                assets_data[asset_type]['market_value'] = decimal_value
+        
+        # 注意：百分比计算现在由AssetAllocationCalculator统一处理
+        
+        # 构建AssetAllocationData对象
+        asset_allocations = []
+        for asset_type, data in assets_data.items():
+            if data['market_value'] > 0 or data['percentage'] > 0:
+                allocation = AssetAllocationData(
+                    asset_type=asset_type,
+                    asset_name=data['name'],
+                    market_value=data['market_value'],
+                    percentage=data['percentage']
+                )
+                asset_allocations.append(allocation)
+        
+        return asset_allocations
+    
+    def _infer_missing_metadata(self, metadata_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        基于上下文推断缺失的元数据
+        
+        Args:
+            metadata_data: 当前元数据字典
+            
+        Returns:
+            补充后的元数据字典
+        """
+        # 如果没有明确的报告类型，尝试从期间推断
+        if (not metadata_data.get('report_type_parsed') and 
+            metadata_data.get('report_period_start') and 
+            metadata_data.get('report_period_end')):
+            
+            inferred_type = self._infer_report_type_from_period(
+                metadata_data['report_period_start'],
+                metadata_data['report_period_end']
+            )
+            if inferred_type != ReportType.UNKNOWN:
+                metadata_data['report_type'] = inferred_type
+                metadata_data['report_type_parsed'] = True
+        
+        # 如果没有报告日期，使用期末日期
+        if (not metadata_data.get('reporting_date_parsed') and 
+            metadata_data.get('report_period_end')):
+            metadata_data['reporting_date'] = metadata_data['report_period_end']
+            metadata_data['reporting_date_parsed'] = True
+        
+        # 清理解析标记
+        keys_to_remove = [k for k in metadata_data.keys() if k.endswith('_parsed')]
+        for key in keys_to_remove:
+            del metadata_data[key]
+        
+        return metadata_data
+    
+    def _map_top_holdings(self, facts_data: List[Dict]) -> List[HoldingData]:
+        """
+        基于上下文的表格数据解析映射前十大持仓数据
+        基于PHASE_1.1_SPRINT_PLAN.md重构，支持更精确的持仓数据识别
+        
+        Args:
+            facts_data: XBRL事实数据列表
+            
+        Returns:
+            前十大持仓数据列表
+        """
+        holdings = []
+        
+        try:
+            # 按上下文分组持仓数据，支持表格结构识别
+            holdings_by_context = {}
+            table_contexts = set()
+            
+            # 第一遍：识别持仓相关的上下文
+            for fact in facts_data:
+                if not isinstance(fact, dict):
+                    continue
+                    
+                concept = fact.get('concept', '')
+                context = fact.get('context', '')
+                
+                if self._is_holding_concept(concept):
+                    table_contexts.add(context)
+            
+            # 第二遍：提取持仓数据
+            for fact in facts_data:
+                if not isinstance(fact, dict):
+                    continue
+                    
+                concept = fact.get('concept', '')
+                value = fact.get('value', '')
+                context = fact.get('context', '')
+                
+                if not value or not context or context not in table_contexts:
+                    continue
+                
+                # 初始化上下文
+                if context not in holdings_by_context:
+                    holdings_by_context[context] = {
+                        'security_code': '',
+                        'security_name': '',
+                        'market_value': 0.0,
+                        'percentage': 0.0,
+                        'shares': 0.0,
+                        'rank': None,
+                        'context_id': context
+                    }
+                
+                # 映射持仓字段
+                self._map_holding_field(concept, value, holdings_by_context[context])
+            
+            # 构建和验证持仓对象
+            for context, holding_data in holdings_by_context.items():
+                if self._is_valid_holding(holding_data):
+                    holding = HoldingData(
+                        holding_type='股票',  # 默认为股票，可以根据需要扩展
+                        security_code=holding_data['security_code'],
+                        security_name=holding_data['security_name'],
+                        shares=holding_data['shares'],
+                        market_value=holding_data['market_value'],
+                        percentage=holding_data['percentage'],
+                        rank=holding_data.get('rank') or 0
+                    )
+                    holdings.append(holding)
+            
+            # 智能排序：优先使用排名，其次使用市值
+            holdings = self._sort_holdings(holdings, holdings_by_context)
+            
+            # 重新分配排名
+            for i, holding in enumerate(holdings[:10], 1):
+                holding.rank = i
+            
+            # 返回前10个
+            return holdings[:10]
+            
+        except Exception as e:
+            self.logger.error(f"映射前十大持仓数据时出错: {str(e)}")
+            return []
+    
+    def _is_holding_concept(self, concept: str) -> bool:
+        """
+        判断概念是否与持仓相关
+        
+        Args:
+            concept: XBRL概念名称
+            
+        Returns:
+            是否为持仓相关概念
+        """
+        holding_keys = [
+            'holding_security_code', 'holding_security_name', 
+            'holding_market_value', 'holding_percentage', 'holding_shares'
+        ]
+        
+        for key in holding_keys:
+            if self._matches_concept(concept, key):
+                return True
+        
+        # 额外的持仓识别模式
+        concept_lower = concept.lower()
+        holding_patterns = [
+            '持仓', '重仓', 'holding', 'position', '前十', 'top', 
+            '股票投资明细', '债券投资明细', '基金投资明细'
+        ]
+        
+        return any(pattern in concept_lower for pattern in holding_patterns)
+    
+    def _matches_concept(self, concept: str, mapping_key: str) -> bool:
+        """
+        检查概念是否与映射中的精确编码匹配。
+        这是从模糊文本匹配到精确编码匹配的核心逻辑变更。
+        
+        Args:
+            concept: 从Arelle获取的XBRL概念名称 (e.g., "csrc-mf-general:FundCode", "1375")
+            mapping_key: self.concept_mappings中的键 (e.g., "fund_code")
+            
+        Returns:
+            如果找到精确匹配则返回True
+        """
+        if mapping_key not in self.concept_mappings:
+            return False
+
+        codes_to_match = self.concept_mappings[mapping_key]
+        
+        # 1. 直接完全匹配 (e.g., concept is "dei:DocumentPeriodEndDate")
+        if concept in codes_to_match:
+            return True
+        
+        # 2. 匹配没有前缀的编码 (e.g., concept is "1375")
+        base_concept = concept.split(':')[-1]
+        if base_concept in codes_to_match:
+            return True
+            
+        # 3. 匹配概念名称中包含的编码 (e.g., concept is "SomeHoldingDetail_1376")
+        for code in codes_to_match:
+            if f"_{code}" in concept or f":{code}" in concept:
+                return True
+
+        return False
+    
+    def _map_holding_field(self, concept: str, value: str, holding_data: Dict[str, Any]):
+        """
+        映射单个持仓字段
+        
+        Args:
+            concept: XBRL概念名称
+            value: 字段值
+            holding_data: 持仓数据字典
+        """
+        if self._matches_concept(concept, 'holding_security_code'):
+            code = self._clean_text_value(value)
+            if code and len(code) >= 6:  # 有效的证券代码长度
+                holding_data['security_code'] = code
+                
+        elif self._matches_concept(concept, 'holding_security_name'):
+            name = self._clean_text_value(value)
+            if name and len(name) > 1:  # 有效的证券名称
+                holding_data['security_name'] = name
+                
+        elif self._matches_concept(concept, 'holding_market_value'):
+            market_value = self._parse_decimal(value)
+            if market_value and market_value > 0:
+                holding_data['market_value'] = market_value
+                
+        elif self._matches_concept(concept, 'holding_percentage'):
+            percentage = self._parse_decimal(value)
+            if percentage is not None:
+                # 处理百分比格式（可能是小数或百分数）
+                if percentage > 1:
+                    percentage = percentage / 100
+                holding_data['percentage'] = percentage
+                
+        elif self._matches_concept(concept, 'holding_shares'):
+            shares = self._parse_decimal(value)
+            if shares and shares > 0:
+                holding_data['shares'] = shares
+                
+        # 识别排名信息
+        elif '排名' in concept.lower() or 'rank' in concept.lower() or '序号' in concept.lower():
+            rank = self._parse_decimal(value)
+            if rank and rank > 0:
+                holding_data['rank'] = int(rank)
+    
+    def _is_valid_holding(self, holding_data: Dict[str, Any]) -> bool:
+        """
+        验证持仓数据是否有效
+        
+        Args:
+            holding_data: 持仓数据字典
+            
+        Returns:
+            是否为有效持仓
+        """
+        # 必须有证券代码或名称
+        has_identifier = bool(holding_data.get('security_code') or holding_data.get('security_name'))
+        
+        # 必须有市值或比例信息
+        has_value = bool(holding_data.get('market_value', 0) > 0 or holding_data.get('percentage', 0) > 0)
+        
+        return has_identifier and has_value
+    
+    def _sort_holdings(self, holdings: List[HoldingData], holdings_by_context: Dict[str, Dict]) -> List[HoldingData]:
+        """
+        智能排序持仓数据
+        
+        Args:
+            holdings: 持仓数据列表
+            holdings_by_context: 按上下文分组的持仓数据
+            
+        Returns:
+            排序后的持仓数据列表
+        """
+        # 检查是否有排名信息
+        has_rank = any(data.get('rank') for data in holdings_by_context.values())
+        
+        if has_rank:
+            # 按排名排序
+            def sort_key(holding):
+                context_data = next(
+                    (data for data in holdings_by_context.values() 
+                     if data['security_code'] == holding.security_code or 
+                        data['security_name'] == holding.security_name),
+                    {}
+                )
+                rank = context_data.get('rank', 999)
+                return (rank, -holding.market_value)
+            
+            holdings.sort(key=sort_key)
+        else:
+            # 按市值排序
+            holdings.sort(key=lambda x: x.market_value, reverse=True)
+        
+        return holdings
+    
+    def _map_industry_allocations(self, facts_data: List[Dict]) -> List[IndustryAllocationData]:
+        """
+        基于上下文的表格数据解析映射行业配置数据
+        基于PHASE_1.1_SPRINT_PLAN.md重构，支持更精确的行业配置数据识别
+        
+        Args:
+            facts_data: XBRL事实数据列表
+            
+        Returns:
+            行业配置数据列表
+        """
+        industry_allocations = []
+        
+        try:
+            # 按上下文分组行业配置数据，支持表格结构识别
+            allocations_by_context = {}
+            table_contexts = set()
+            
+            # 第一遍：识别行业配置相关的上下文
+            for fact in facts_data:
+                if not isinstance(fact, dict):
+                    continue
+                    
+                concept = fact.get('concept', '')
+                context = fact.get('context', '')
+                
+                if self._is_industry_concept(concept):
+                    table_contexts.add(context)
+            
+            # 第二遍：提取行业配置数据
+            for fact in facts_data:
+                if not isinstance(fact, dict):
+                    continue
+                    
+                concept = fact.get('concept', '')
+                value = fact.get('value', '')
+                context = fact.get('context', '')
+                
+                if not value or not context or context not in table_contexts:
+                    continue
+                
+                # 初始化上下文
+                if context not in allocations_by_context:
+                    allocations_by_context[context] = {
+                        'industry_name': '',
+                        'industry_code': '',
+                        'market_value': 0.0,
+                        'percentage': 0.0,
+                        'rank': None,
+                        'context_id': context
+                    }
+                
+                # 映射行业配置字段
+                self._map_industry_field(concept, value, allocations_by_context[context])
+            
+            # 构建和验证行业配置对象
+            for context, allocation_data in allocations_by_context.items():
+                if self._is_valid_industry_allocation(allocation_data):
+                    industry_allocation = IndustryAllocationData(
+                        industry_name=allocation_data['industry_name'],
+                        industry_code=allocation_data['industry_code'],
+                        market_value=allocation_data['market_value'],
+                        percentage=allocation_data['percentage']
+                    )
+                    industry_allocations.append(industry_allocation)
+            
+            # 智能排序：优先使用排名，其次使用市值
+            industry_allocations = self._sort_industry_allocations(industry_allocations, allocations_by_context)
+            
+            # 重新分配排名
+            for i, allocation in enumerate(industry_allocations, 1):
+                allocation.rank = i
+            
+            return industry_allocations
+            
+        except Exception as e:
+            self.logger.error(f"映射行业配置数据时出错: {str(e)}")
+            return []
+    
+    def _is_industry_concept(self, concept: str) -> bool:
+        """
+        判断概念是否与行业配置相关
+        
+        Args:
+            concept: XBRL概念名称
+            
+        Returns:
+            是否为行业配置相关概念
+        """
+        industry_keys = ['industry_name', 'industry_code']
+        
+        for key in industry_keys:
+            if self._matches_concept(concept, key):
+                return True
+        
+        # 额外的行业配置识别模式
+        concept_lower = concept.lower()
+        industry_patterns = [
+            '行业', '板块', 'industry', 'sector', '分类', 
+            '行业配置', '行业分布', '行业投资', '板块配置'
+        ]
+        
+        return any(pattern in concept_lower for pattern in industry_patterns)
+    
+    def _map_industry_field(self, concept: str, value: str, allocation_data: Dict[str, Any]):
+        """
+        映射单个行业配置字段
+        
+        Args:
+            concept: XBRL概念名称
+            value: 字段值
+            allocation_data: 行业配置数据字典
+        """
+        if self._matches_concept(concept, 'industry_name'):
+            name = self._clean_text_value(value)
+            if name and len(name) > 1:  # 有效的行业名称
+                allocation_data['industry_name'] = name
+                
+        elif self._matches_concept(concept, 'industry_code'):
+            code = self._clean_text_value(value)
+            if code:  # 行业代码可以为空
+                allocation_data['industry_code'] = code
+                
+        elif self._matches_concept(concept, 'holding_market_value'):
+            market_value = self._parse_decimal(value)
+            if market_value and market_value > 0:
+                allocation_data['market_value'] = market_value
+                
+        elif self._matches_concept(concept, 'holding_percentage'):
+            percentage = self._parse_decimal(value)
+            if percentage is not None:
+                # 处理百分比格式（可能是小数或百分数）
+                if percentage > 1:
+                    percentage = percentage / 100
+                allocation_data['percentage'] = percentage
+                
+        # 识别排名信息
+        elif '排名' in concept.lower() or 'rank' in concept.lower() or '序号' in concept.lower():
+            rank = self._parse_decimal(value)
+            if rank and rank > 0:
+                allocation_data['rank'] = int(rank)
+    
+    def _is_valid_industry_allocation(self, allocation_data: Dict[str, Any]) -> bool:
+        """
+        验证行业配置数据是否有效
+        
+        Args:
+            allocation_data: 行业配置数据字典
+            
+        Returns:
+            是否为有效行业配置
+        """
+        # 必须有行业名称
+        has_name = bool(allocation_data.get('industry_name'))
+        
+        # 必须有市值或比例信息
+        has_value = bool(allocation_data.get('market_value', 0) > 0 or allocation_data.get('percentage', 0) > 0)
+        
+        return has_name and has_value
+    
+    def _sort_industry_allocations(self, allocations: List[IndustryAllocationData], 
+                                 allocations_by_context: Dict[str, Dict]) -> List[IndustryAllocationData]:
+        """
+        智能排序行业配置数据
+        
+        Args:
+            allocations: 行业配置数据列表
+            allocations_by_context: 按上下文分组的行业配置数据
+            
+        Returns:
+            排序后的行业配置数据列表
+        """
+        # 检查是否有排名信息
+        has_rank = any(data.get('rank') for data in allocations_by_context.values())
+        
+        if has_rank:
+            # 按排名排序
+            def sort_key(allocation):
+                context_data = next(
+                    (data for data in allocations_by_context.values() 
+                     if data['industry_name'] == allocation.industry_name),
+                    {}
+                )
+                rank = context_data.get('rank', 999)
+                return (rank, -float(allocation.market_value or 0))
+            
+            allocations.sort(key=sort_key)
+        else:
+            # 按市值排序
+            allocations.sort(key=lambda x: float(x.market_value or 0), reverse=True)
+        
+        return allocations
+    
     def _create_success_result(
         self, 
         fund_report: ComprehensiveFundReport, 
         file_path: Optional[Path]
     ) -> ParseResult:
         """创建成功的解析结果"""
-        # 将ComprehensiveFundReport转换为旧的FundReport格式以兼容现有接口
-        from src.models.fund_data import FundReport
-        
-        legacy_report = FundReport()
-        legacy_report.fund_code = fund_report.basic_info.fund_code
-        legacy_report.fund_name = fund_report.basic_info.fund_name
-        legacy_report.fund_manager = fund_report.basic_info.fund_manager
-        legacy_report.net_asset_value = fund_report.financial_metrics.net_asset_value
-        legacy_report.total_net_assets = fund_report.financial_metrics.total_net_assets
-        legacy_report.total_shares = fund_report.financial_metrics.total_shares
-        legacy_report.upload_info_id = fund_report.report_metadata.upload_info_id
-        legacy_report.parsing_method = fund_report.report_metadata.parsing_method
-        legacy_report.parsing_confidence = fund_report.report_metadata.parsing_confidence
-        
         return ParseResult(
             success=True,
-            fund_report=legacy_report,
+            fund_report=fund_report,  # 直接使用ComprehensiveFundReport，不再转换为旧格式
             parser_type=self.parser_type,
             errors=[],
             warnings=[],
             metadata={
                 "file_path": str(file_path) if file_path else None,
                 "parsing_method": "arelle_cmdline",
-                "comprehensive_report": fund_report
+                "parsing_confidence": fund_report.report_metadata.parsing_confidence
             }
         )
     

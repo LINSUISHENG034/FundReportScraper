@@ -16,6 +16,7 @@ from pydantic import BaseModel, field_validator, Field
 
 from src.core.logging import get_logger
 from src.models.fund_data import FundReport, AssetAllocation, TopHolding, IndustryAllocation
+from src.models.enhanced_fund_data import AssetAllocationData
 
 
 @dataclass
@@ -619,3 +620,152 @@ class QualityReportGenerator:
             recommendations.append("质量下降趋势：需要分析原因并采取改进措施")
         
         return recommendations
+
+
+class AssetAllocationCalculator:
+    """资产配置计算器
+    
+    负责计算资产配置的百分比、验证数据一致性等功能
+    """
+    
+    def __init__(self):
+        self.logger = get_logger("asset_allocation_calculator")
+    
+    def calculate_percentages(self, allocations: List[AssetAllocationData]) -> List[AssetAllocationData]:
+        """计算资产配置百分比
+        
+        Args:
+            allocations: 资产配置数据列表
+            
+        Returns:
+            更新了百分比的资产配置数据列表
+        """
+        if not allocations:
+            return allocations
+        
+        # 计算总市值
+        total_market_value = sum(
+            allocation.market_value for allocation in allocations 
+            if allocation.market_value and allocation.market_value > 0
+        )
+        
+        if total_market_value <= 0:
+            self.logger.warning("总市值为零或负数，无法计算百分比")
+            return allocations
+        
+        # 更新百分比
+        updated_allocations = []
+        for allocation in allocations:
+            if allocation.market_value and allocation.market_value > 0:
+                # 如果没有百分比或百分比为0，则计算百分比
+                if not allocation.percentage or allocation.percentage == 0:
+                    calculated_percentage = allocation.market_value / total_market_value
+                    updated_allocation = AssetAllocationData(
+                        asset_type=allocation.asset_type,
+                        asset_name=allocation.asset_name,
+                        market_value=allocation.market_value,
+                        percentage=calculated_percentage
+                    )
+                    updated_allocations.append(updated_allocation)
+                else:
+                    updated_allocations.append(allocation)
+            else:
+                updated_allocations.append(allocation)
+        
+        self.logger.debug(f"计算了 {len(updated_allocations)} 项资产配置的百分比")
+        return updated_allocations
+    
+    def validate_allocation_consistency(self, allocations: List[AssetAllocationData]) -> Tuple[bool, List[str]]:
+        """验证资产配置一致性
+        
+        Args:
+            allocations: 资产配置数据列表
+            
+        Returns:
+            (是否一致, 问题列表)
+        """
+        issues = []
+        
+        if not allocations:
+            issues.append("资产配置数据为空")
+            return False, issues
+        
+        # 验证百分比总和
+        total_percentage = sum(
+            allocation.percentage for allocation in allocations 
+            if allocation.percentage and allocation.percentage > 0
+        )
+        
+        # 允许5%的误差
+        if abs(total_percentage - 1.0) > 0.05:
+            issues.append(f"资产配置百分比总和异常: {total_percentage:.2%} (期望: 100%)")
+        
+        # 验证市值与百分比的一致性
+        total_market_value = sum(
+            allocation.market_value for allocation in allocations 
+            if allocation.market_value and allocation.market_value > 0
+        )
+        
+        if total_market_value > 0:
+            for allocation in allocations:
+                if (allocation.market_value and allocation.percentage and 
+                    allocation.market_value > 0 and allocation.percentage > 0):
+                    
+                    expected_percentage = allocation.market_value / total_market_value
+                    actual_percentage = allocation.percentage
+                    
+                    # 允许2%的误差
+                    if abs(expected_percentage - actual_percentage) > 0.02:
+                        issues.append(
+                            f"{allocation.asset_type} 百分比不一致: "
+                            f"实际 {actual_percentage:.2%}, 期望 {expected_percentage:.2%}"
+                        )
+        
+        # 检查单项配置是否合理
+        for allocation in allocations:
+            if allocation.percentage and allocation.percentage > 0.95:
+                issues.append(f"单项资产配置过高: {allocation.asset_type} {allocation.percentage:.2%}")
+        
+        return len(issues) == 0, issues
+    
+    def normalize_allocations(self, allocations: List[AssetAllocationData]) -> List[AssetAllocationData]:
+        """标准化资产配置数据
+        
+        确保百分比总和为100%
+        
+        Args:
+            allocations: 资产配置数据列表
+            
+        Returns:
+            标准化后的资产配置数据列表
+        """
+        if not allocations:
+            return allocations
+        
+        # 计算当前百分比总和
+        total_percentage = sum(
+            allocation.percentage for allocation in allocations 
+            if allocation.percentage and allocation.percentage > 0
+        )
+        
+        if total_percentage <= 0:
+            self.logger.warning("百分比总和为零或负数，无法标准化")
+            return allocations
+        
+        # 标准化百分比
+        normalized_allocations = []
+        for allocation in allocations:
+            if allocation.percentage and allocation.percentage > 0:
+                normalized_percentage = allocation.percentage / total_percentage
+                normalized_allocation = AssetAllocationData(
+                    asset_type=allocation.asset_type,
+                    asset_name=allocation.asset_name,
+                    market_value=allocation.market_value,
+                    percentage=normalized_percentage
+                )
+                normalized_allocations.append(normalized_allocation)
+            else:
+                normalized_allocations.append(allocation)
+        
+        self.logger.debug(f"标准化了 {len(normalized_allocations)} 项资产配置")
+        return normalized_allocations
