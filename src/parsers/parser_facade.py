@@ -76,13 +76,11 @@ class XBRLParserFacade:
         # 核心组件
         self.format_detector = FormatDetector()
         self._parsers: Dict[ParserType, BaseParser] = {}
-        self._format_parser_mapping: Dict[DocumentFormat, List[ParserType]] = {
-            DocumentFormat.XBRL: [ParserType.XBRL_NATIVE],
-            DocumentFormat.IXBRL: [ParserType.XBRL_NATIVE, ParserType.HTML_LEGACY],
-            DocumentFormat.HTML: [ParserType.HTML_LEGACY],
-            DocumentFormat.UNKNOWN: [ParserType.HTML_LEGACY]
-        }
         self.metrics = ParsingMetrics()
+        
+        # 集成iXBRL提取器
+        from src.parsers.xbrl.ixbrl_extractor import iXBRLExtractor
+        self.ixbrl_extractor = iXBRLExtractor()
         
         # 质量监控组件
         self.quality_collector = QualityMetricsCollector()
@@ -266,78 +264,61 @@ class XBRLParserFacade:
                                  content: str, 
                                  file_path: Optional[Path] = None,
                                  format_hint: Optional[DocumentFormat] = None) -> ParseResult:
-        """解析内容（异步版本，支持LLM增强）"""
+        """解析内容（异步版本，支持新的路由逻辑）"""
         if not content or not content.strip():
             return self._create_error_result("内容为空")
         
-        # 如果没有格式提示，自动检测
+        # 1. 格式检测 (如果未提供)
         if format_hint is None:
             format_hint = self.format_detector.detect_format(content, file_path)
         
-        # 获取适用的解析器列表
-        parser_types = self._format_parser_mapping.get(format_hint, [ParserType.HTML_LEGACY])
-        
-        # 尝试使用每个解析器
-        last_error = None
-        for parser_type in parser_types:
-            parser = self._parsers.get(parser_type)
-            if not parser:
-                self.logger.warning("解析器未注册", parser_type=parser_type.value)
-                continue
+        # 2. iXBRL 路径
+        if format_hint == DocumentFormat.IXBRL:
+            log_extra = {"file": file_path.name} if file_path else {}
+            self.logger.info("iXBRL format detected. Attempting extraction...", extra=log_extra)
+            # 2.1. 提取内嵌的 XBRL
+            extracted_xml = self.ixbrl_extractor.extract_to_string(content)
             
-            try:
-                # 检查解析器是否能处理该内容
-                if not parser.can_parse(content, file_path):
-                    self.logger.debug("解析器无法处理该内容", parser_type=parser_type.value)
-                    continue
-                
-                # 尝试解析
-                self.logger.info("尝试使用解析器", parser_type=parser_type.value)
-                result = parser.parse_content(content, file_path)
-                
-                if result.success:
-                    # 如果解析成功，进行质量验证和修复
-                    result = await self._enhance_parsing_result(result, content)
-                    
-                    self.logger.info("解析成功", 
-                                   parser_type=parser_type.value,
-                                   completeness_score=result.metadata.get("completeness_score", 0))
-                    return result
-                else:
-                    self.logger.warning("解析失败", 
-                                      parser_type=parser_type.value,
-                                      errors=result.errors)
-                    last_error = result
-                    
-            except Exception as e:
-                self.logger.error("解析器执行异常", 
-                                parser_type=parser_type.value, 
-                                error=str(e))
-                last_error = self._create_error_result(f"解析器异常: {str(e)}")
+            if extracted_xml:
+                self.logger.info("XBRL content extracted successfully. Passing to ArelleParser.", extra=log_extra)
+                # 2.2. 使用 ArelleParser 解析提取出的 XML
+                arelle_parser = self._parsers.get(ParserType.XBRL_NATIVE)
+                if arelle_parser:
+                    result = arelle_parser.parse_content(extracted_xml, file_path)
+                    if result.success:
+                        return await self._enhance_parsing_result(result, content) # 成功，返回
+            
+            # 2.3. 如果提取失败或 Arelle 解析失败，则降级
+            self.logger.warning("iXBRL path failed. Falling back to HTML parser.", extra=log_extra)
         
-        # 如果启用AI增强且所有解析器都失败，尝试AI增强解析
-        if ParserType.AI_ENHANCED in self._parsers:
-            try:
-                ai_parser = self._parsers[ParserType.AI_ENHANCED]
-                self.logger.info("尝试AI增强解析")
-                result = ai_parser.parse_content(content, file_path)
-                
+        # 3. 纯 XBRL 路径
+        if format_hint == DocumentFormat.XBRL:
+            log_extra = {"file": file_path.name} if file_path else {}
+            self.logger.info("Pure XBRL format detected. Using ArelleParser.", extra=log_extra)
+            arelle_parser = self._parsers.get(ParserType.XBRL_NATIVE)
+            if arelle_parser:
+                result = arelle_parser.parse_content(content, file_path)
                 if result.success:
-                    result = await self._enhance_parsing_result(result, content)
-                    self.logger.info("AI增强解析成功", 
-                                   completeness_score=result.metadata.get("completeness_score", 0))
-                    return result
-                else:
-                    self.logger.warning("AI增强解析失败", errors=result.errors)
-                    
-            except Exception as e:
-                self.logger.error("AI增强解析异常", error=str(e))
+                    return await self._enhance_parsing_result(result, content) # 成功，返回
+            
+            # 3.1. 如果 Arelle 解析失败，则降级
+            self.logger.warning("Pure XBRL path failed. Falling back to HTML parser.", extra=log_extra)
         
-        # 所有解析器都失败
-        if last_error:
-            return last_error
-        else:
-            return self._create_error_result("没有可用的解析器能够处理该内容")
+        # 4. HTML / 未知 / 降级路径
+        log_extra = {"file": file_path.name} if file_path else {}
+        self.logger.info("Using fallback HTML parser.", extra=log_extra)
+        html_parser = self._parsers.get(ParserType.HTML_LEGACY)
+        if html_parser:
+            result = html_parser.parse_content(content, file_path)
+            if result.success:
+                return await self._enhance_parsing_result(result, content)
+        
+        # 5. (未来) LLM 最终备用方案
+        # if self.llm_assistant:
+        #     ...
+        
+        # 6. 所有方法都失败
+        return self._create_error_result("All parsing attempts failed.")
     
     def parse_content(self, 
                      content: str, 
@@ -357,7 +338,12 @@ class XBRLParserFacade:
             
             # 如果有数据修复服务且发现问题，尝试修复
             if self.data_repair_service and validation_result.issues:
-                self.logger.info("检测到数据质量问题，尝试修复", issues_count=len(validation_result.issues))
+                # 从result.metadata中获取文件路径信息
+                log_extra = {}
+                if hasattr(result, 'metadata') and 'file_path' in result.metadata:
+                    log_extra["file"] = Path(result.metadata['file_path']).name
+                
+                self.logger.info("检测到数据质量问题，尝试修复", issues_count=len(validation_result.issues), extra=log_extra)
                 
                 repair_result = await self.data_repair_service.repair_fund_data(
                     result.fund_report, validation_result.issues, content
@@ -370,7 +356,8 @@ class XBRLParserFacade:
                     result.metadata['repair_details'] = repair_result.repair_details
                     
                     self.logger.info("数据修复完成", 
-                                   repaired_fields=len(repair_result.repair_details))
+                                   repaired_fields=len(repair_result.repair_details),
+                                   extra=log_extra)
             
             # 更新元数据
             result.metadata.update({
@@ -380,7 +367,12 @@ class XBRLParserFacade:
             })
             
         except Exception as e:
-            self.logger.warning("解析结果增强失败", error=str(e))
+            # 从result.metadata中获取文件路径信息
+            log_extra = {}
+            if hasattr(result, 'metadata') and 'file_path' in result.metadata:
+                log_extra["file"] = Path(result.metadata['file_path']).name
+            
+            self.logger.warning("解析结果增强失败", error=str(e), extra=log_extra)
             result.warnings.append(f"解析结果增强失败: {str(e)}")
         
         return result
