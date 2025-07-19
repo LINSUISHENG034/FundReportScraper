@@ -1,0 +1,31 @@
+{
+  "taxonomy_info": {
+    "name": "Default XBRL Taxonomy",
+    "version": "default",
+    "description": "默认XBRL分类标准映射",
+    "schema_ref_patterns": [
+      "default"
+    ]
+  },
+  "concept_mappings": {
+    "fund_code": ["0012", "fund_code", "基金代码"],
+    "fund_name": ["0009", "0011", "fund_name", "基金名称", "基金简称"],
+    "fund_manager": ["0186", "fund_manager", "基金管理人"],
+    "net_asset_value": ["0506", "net_asset_value", "基金份额净值"],
+    "total_net_assets": ["0505", "total_net_assets", "基金资产净值"],
+    "period_profit": ["0497", "period_profit", "本期利润"],
+    "report_period_start": ["dei:DocumentPeriodStartDate", "2023", "report_period_start", "报告期开始"],
+    "report_period_end": ["dei:DocumentPeriodEndDate", "2024", "report_period_end", "报告期结束"],
+    "report_type_name": ["dei:DocumentType", "0002", "report_type", "报告类型"],
+    "asset_equity": ["1051", "asset_equity", "股票投资"],
+    "asset_bond": ["1063", "asset_bond", "债券投资"],
+    "asset_cash": ["1086", "asset_cash", "银行存款"],
+    "asset_total": ["1090", "asset_total", "合计"],
+    "holding_rank": ["1375", "holding_rank", "排名"],
+    "holding_code": ["1376", "holding_code", "证券代码"],
+    "holding_name": ["1379", "holding_name", "证券名称"],
+    "holding_shares": ["1382", "holding_shares", "持有股数"],
+    "holding_fair_value": ["1383", "holding_fair_value", "公允价值"],
+    "holding_percentage": ["1384", "holding_percentage", "占基金资产净值比例"]
+  }
+}

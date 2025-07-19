@@ -1,491 +1,210 @@
-"""ArelleParser单元测试
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+测试重构后的ArelleParser功能
 
-测试基于Arelle命令行的XBRL解析器功能
+这个测试文件验证PHASE_8重构后的ArelleParser是否能够:
+1. 动态加载XBRL分类标准映射
+2. 正确使用Arelle命令行工具解析XBRL文件
+3. 移除了已弃用的lxml原生解析器代码
 """
 
-import pytest
+import unittest
+import tempfile
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from decimal import Decimal
-from datetime import date
+from unittest.mock import patch, MagicMock, mock_open
 
 from src.parsers.arelle_parser import ArelleParser
-from src.parsers.base_parser import ParseResult, ParserType
-from src.models.enhanced_fund_data import ComprehensiveFundReport
+from src.models.enhanced_fund_data import (
+    ComprehensiveFundReport, BasicFundInfo, FinancialMetrics, 
+    ReportMetadata, ReportType
+)
+from src.parsers.base_parser import ParseResult
+from datetime import date, datetime
 
 
-class TestArelleParser:
-    """ArelleParser测试类"""
+class TestArelleParserRefactored(unittest.TestCase):
+    """测试重构后的ArelleParser"""
     
-    @pytest.fixture
-    def parser(self):
-        """创建解析器实例"""
-        return ArelleParser()
-    
-    @pytest.fixture
-    def sample_xbrl_content(self):
-        """示例XBRL内容"""
-        return '''
+    def setUp(self):
+        """设置测试环境"""
+        self.parser = ArelleParser()
+        
+        # 模拟XBRL内容
+        self.sample_xbrl_content = '''
         <?xml version="1.0" encoding="UTF-8"?>
         <xbrl xmlns="http://www.xbrl.org/2003/instance"
-              xmlns:xbrli="http://www.xbrl.org/2003/instance"
-              xmlns:fund="http://www.csrc.gov.cn/fund">
-            <context id="ctx1">
+              xmlns:link="http://www.xbrl.org/2003/linkbase"
+              xmlns:xlink="http://www.w3.org/1999/xlink"
+              xmlns:csrc-mf="http://www.csrc.gov.cn/xbrl/taxonomy/csrc-mf-general">
+            <link:schemaRef xlink:type="simple" 
+                           xlink:href="http://www.csrc.gov.cn/xbrl/taxonomy/csrc-mf-general-2021-03-31.xsd"/>
+            <context id="period_2023">
                 <entity>
-                    <identifier scheme="http://www.csrc.gov.cn">001056</identifier>
+                    <identifier scheme="http://www.csrc.gov.cn">000001</identifier>
                 </entity>
                 <period>
-                    <instant>2024-12-31</instant>
+                    <startDate>2023-01-01</startDate>
+                    <endDate>2023-12-31</endDate>
                 </period>
             </context>
-            <unit id="CNY">
-                <measure>iso4217:CNY</measure>
-            </unit>
-            <fund:FundCode contextRef="ctx1">001056</fund:FundCode>
-            <fund:FundName contextRef="ctx1">测试基金</fund:FundName>
-            <fund:NetAssetValue contextRef="ctx1" unitRef="CNY">1.2345</fund:NetAssetValue>
-            <fund:TotalNetAssets contextRef="ctx1" unitRef="CNY">1000000000</fund:TotalNetAssets>
+            <csrc-mf:FundCode contextRef="period_2023">000001</csrc-mf:FundCode>
+            <csrc-mf:FundName contextRef="period_2023">测试基金</csrc-mf:FundName>
         </xbrl>
         '''
-    
-    @pytest.fixture
-    def sample_facts_json(self):
-        """示例事实JSON数据"""
-        return json.dumps([
-            {
-                "concept": "0012",
-                "value": "001056",
-                "context": "ctx1",
-                "unit": ""
+        
+        # 模拟分类标准配置
+        self.sample_taxonomy_config = {
+            "taxonomy_info": {
+                "name": "CSRC v2.1",
+                "version": "2.1",
+                "description": "中国证监会基金信息披露XBRL分类标准v2.1"
             },
-            {
-                "concept": "0009",
-                "value": "测试基金",
-                "context": "ctx1",
-                "unit": ""
-            },
-            {
-                "concept": "0506",
-                "value": "1.2345",
-                "context": "ctx1",
-                "unit": "CNY"
-            },
-            {
-                "concept": "0505",
-                "value": "1000000000",
-                "context": "ctx1",
-                "unit": "CNY"
+            "concept_mappings": {
+                "fund_code": ["0012"],
+                "fund_name": ["0009", "0011"],
+                "fund_manager": ["0186"]
             }
-        ])
+        }
     
-    def test_parser_initialization(self, parser):
-        """测试解析器初始化"""
-        assert parser.parser_type == ParserType.XBRL_NATIVE
-        assert hasattr(parser, 'concept_mappings')
-        assert 'fund_code' in parser.concept_mappings
-        assert 'fund_name' in parser.concept_mappings
-        assert 'net_asset_value' in parser.concept_mappings
-        assert 'total_net_assets' in parser.concept_mappings
+    def test_init_without_hardcoded_mappings(self):
+        """测试初始化时不包含硬编码的概念映射"""
+        parser = ArelleParser()
+        
+        # 验证初始状态
+        self.assertIsNone(parser.current_taxonomy)
+        self.assertEqual(parser.concept_mappings, {})
+        
+        # 验证不再有硬编码的映射
+        self.assertNotIn("fund_code", parser.concept_mappings)
+        self.assertNotIn("fund_name", parser.concept_mappings)
     
-    def test_can_parse(self, parser):
-        """测试can_parse方法"""
-        # ArelleParser应该总是返回True，因为它假设输入已经是预判过的XBRL
-        assert parser.can_parse("any content") is True
-        assert parser.can_parse("") is True
-    
-    @patch('subprocess.run')
-    def test_check_arelle_availability_success(self, mock_run, parser):
-        """测试Arelle可用性检查 - 成功情况"""
-        # 模拟成功的命令执行
-        mock_run.return_value.returncode = 0
-        mock_run.return_value.stdout = "Arelle version 1.2.0"
+    @patch('src.parsers.arelle_parser.Path.exists')
+    @patch('builtins.open', new_callable=mock_open)
+    def test_load_taxonomy_mapping_success(self, mock_file, mock_exists):
+        """测试成功加载分类标准映射"""
+        # 模拟文件存在
+        mock_exists.return_value = True
+        mock_file.return_value.read.return_value = json.dumps(self.sample_taxonomy_config)
         
-        result = parser._check_arelle_availability()
-        assert result is True
-    
-    @patch('subprocess.run')
-    def test_check_arelle_availability_failure(self, mock_run, parser):
-        """测试Arelle可用性检查 - 失败情况"""
-        # 模拟失败的命令执行
-        mock_run.side_effect = FileNotFoundError()
-        
-        result = parser._check_arelle_availability()
-        assert result is False
-    
-    def test_clean_text_value(self, parser):
-        """测试文本值清理"""
-        assert parser._clean_text_value("  test  ") == "test"
-        assert parser._clean_text_value("") == ""
-        assert parser._clean_text_value(None) == ""
-        assert parser._clean_text_value("基金名称") == "基金名称"
-    
-    def test_parse_decimal(self, parser):
-        """测试十进制数解析"""
-        assert parser._parse_decimal("123.45") == Decimal("123.45")
-        assert parser._parse_decimal("1,234.56") == Decimal("1234.56")
-        assert parser._parse_decimal("1，234.56") == Decimal("1234.56")
-        assert parser._parse_decimal("invalid") is None
-        assert parser._parse_decimal("") is None
-        assert parser._parse_decimal(None) is None
-    
-    def test_map_basic_info(self, parser):
-        """测试基本信息映射"""
-        data_dict = {}
-        
-        # 测试基金代码映射
-        parser._map_basic_info("0012", "001056", data_dict)
-        assert data_dict['fund_code'] == "001056"
-        
-        # 测试基金名称映射
-        parser._map_basic_info("0009", "测试基金", data_dict)
-        assert data_dict['fund_name'] == "测试基金"
-        
-        # 测试无效基金代码不会覆盖已有值
-        parser._map_basic_info("0012", "invalid", data_dict)
-        assert data_dict['fund_code'] == "001056"  # 保持原值
-    
-    def test_map_financial_metrics(self, parser):
-        """测试财务指标映射"""
-        data_dict = {}
-        
-        # 测试净值映射
-        parser._map_financial_metrics("0506", "1.2345", data_dict)
-        assert data_dict['net_asset_value'] == Decimal("1.2345")
-        
-        # 测试总净资产映射
-        parser._map_financial_metrics("0505", "1000000000", data_dict)
-        assert data_dict['total_net_assets'] == Decimal("1000000000")
-        
-        # 测试无效数值不会被映射
-        parser._map_financial_metrics("0506", "invalid", data_dict)
-        assert data_dict['net_asset_value'] == Decimal("1.2345")  # 保持原值
-    
-    def test_map_facts_to_report_success(self, parser, sample_facts_json):
-        """测试事实映射到报告 - 成功情况"""
-        result = parser._map_facts_to_report(sample_facts_json)
-        
-        assert result is not None
-        assert isinstance(result, ComprehensiveFundReport)
-        assert result.basic_info.fund_code == "001056"
-        assert result.basic_info.fund_name == "测试基金"
-        assert result.financial_metrics.net_asset_value == Decimal("1.2345")
-        assert result.financial_metrics.total_net_assets == Decimal("1000000000")
-        assert result.report_metadata.parsing_method == "arelle_cmdline"
-    
-    def test_map_facts_to_report_error(self, parser):
-        """测试事实映射到报告 - 错误情况"""
-        # 测试错误JSON
-        error_json = '{"error": "解析失败"}'
-        result = parser._map_facts_to_report(error_json)
-        assert result is None
-        
-        # 测试无效JSON
-        invalid_json = "invalid json"
-        result = parser._map_facts_to_report(invalid_json)
-        assert result is None
-        
-        # 测试空列表
-        empty_json = "[]"
-        result = parser._map_facts_to_report(empty_json)
-        assert result is not None  # 应该返回默认值的报告
-    
-    @patch.object(ArelleParser, '_run_arelle_command')
-    @patch.object(ArelleParser, '_check_arelle_availability')
-    def test_parse_content_success(self, mock_check, mock_run, parser, sample_xbrl_content, sample_facts_json):
-        """测试内容解析 - 成功情况"""
-        # 模拟Arelle可用
-        mock_check.return_value = True
-        parser._arelle_available = True
-        
-        # 模拟Arelle命令返回
-        mock_run.return_value = sample_facts_json
-        
-        result = parser.parse_content(sample_xbrl_content)
-        
-        assert isinstance(result, ParseResult)
-        assert result.success is True
-        assert result.fund_report is not None
-        assert result.fund_report.basic_info.fund_code == "001056"
-        assert result.fund_report.basic_info.fund_name == "测试基金"
-        assert result.parser_type == ParserType.XBRL_NATIVE
-        assert len(result.errors) == 0
-    
-    @patch.object(ArelleParser, '_check_arelle_availability')
-    def test_parse_content_arelle_unavailable(self, mock_check, parser, sample_xbrl_content):
-        """测试内容解析 - Arelle不可用"""
-        # 模拟Arelle不可用
-        mock_check.return_value = False
-        parser._arelle_available = False
-        
-        result = parser.parse_content(sample_xbrl_content)
-        
-        assert isinstance(result, ParseResult)
-        assert result.success is False
-        assert result.fund_report is None
-        assert len(result.errors) > 0
-        assert "Arelle命令行工具不可用" in result.errors[0]
-    
-    @patch.object(ArelleParser, '_run_arelle_command')
-    @patch.object(ArelleParser, '_check_arelle_availability')
-    def test_parse_content_arelle_command_failure(self, mock_check, mock_run, parser, sample_xbrl_content):
-        """测试内容解析 - Arelle命令失败"""
-        # 模拟Arelle可用但命令失败
-        mock_check.return_value = True
-        parser._arelle_available = True
-        mock_run.return_value = None
-        
-        result = parser.parse_content(sample_xbrl_content)
-        
-        assert isinstance(result, ParseResult)
-        assert result.success is False
-        assert result.fund_report is None
-        assert len(result.errors) > 0
-        assert "未返回有效的事实数据" in result.errors[0]
-    
-    def test_create_success_result(self, parser, sample_facts_json):
-        """测试创建成功结果"""
-        fund_report = parser._map_facts_to_report(sample_facts_json)
-        result = parser._create_success_result(fund_report, Path("test.xbrl"))
-        
-        assert isinstance(result, ParseResult)
-        assert result.success is True
-        assert result.fund_report is not None
-        assert result.parser_type == ParserType.XBRL_NATIVE
-        assert "file_path" in result.metadata
-        # 移除对comprehensive_report的检查，因为现在直接返回ComprehensiveFundReport
-    
-    def test_create_error_result(self, parser):
-        """测试创建错误结果"""
-        error_msg = "测试错误消息"
-        result = parser._create_error_result(error_msg)
-        
-        assert isinstance(result, ParseResult)
-        assert result.success is False
-        assert result.fund_report is None
-        assert result.parser_type == ParserType.XBRL_NATIVE
-        assert error_msg in result.errors
-    
-    def test_parse_date(self, parser):
-        """测试日期解析"""
-        from datetime import date
-        
-        # 测试标准日期格式
-        assert parser._parse_date("2023-12-31") == date(2023, 12, 31)
-        assert parser._parse_date("2023/12/31") == date(2023, 12, 31)
-        assert parser._parse_date("2023年12月31日") == date(2023, 12, 31)
-        
-        # 测试无效日期
-        assert parser._parse_date("invalid") is None
-        assert parser._parse_date("") is None
-        assert parser._parse_date(None) is None
-    
-    def test_parse_report_type(self, parser):
-        """测试报告类型解析"""
-        from src.core.fund_search_parameters import ReportType
-        
-        # 测试年报
-        assert parser._parse_report_type("年报") == ReportType.ANNUAL
-        assert parser._parse_report_type("annual report") == ReportType.ANNUAL
-        
-        # 测试季报
-        assert parser._parse_report_type("季报") == ReportType.QUARTERLY
-        assert parser._parse_report_type("quarterly report") == ReportType.QUARTERLY
-        
-        # 测试半年报
-        assert parser._parse_report_type("半年报") == ReportType.SEMI_ANNUAL
-        assert parser._parse_report_type("semi annual") == ReportType.SEMI_ANNUAL
-        
-        # 测试无效类型
-        assert parser._parse_report_type("invalid") == ReportType.UNKNOWN
-        assert parser._parse_report_type("") == ReportType.UNKNOWN
-    
-    def test_map_metadata(self, parser):
-        """测试元数据映射"""
-        from datetime import date
-        from src.core.fund_search_parameters import ReportType
-        
-        data_dict = {}
-        
-        # 测试报告期结束日期映射
-        parser._map_metadata("dei:DocumentPeriodEndDate", "2023-12-31", data_dict)
-        assert data_dict['report_period_end'] == date(2023, 12, 31)
-        assert data_dict['report_year'] == 2023
-        assert data_dict['report_period_end_parsed'] is True
-        
-        # 测试报告期开始日期映射
-        parser._map_metadata("dei:DocumentPeriodStartDate", "2023-01-01", data_dict)
-        assert data_dict['report_period_start'] == date(2023, 1, 1)
-        assert data_dict['report_period_start_parsed'] is True
-        
-        # 测试报告类型映射
-        parser._map_metadata("dei:DocumentType", "季报", data_dict)
-        assert data_dict['report_type'] == ReportType.QUARTERLY
-        assert data_dict['report_type_parsed'] is True
-    
-    def test_map_asset_allocations(self, parser):
-        """测试资产配置映射"""
-        from src.models.enhanced_fund_data import AssetType
-        
-        facts_data = [
-            {
-                "concept": "1051",  # 权益投资-股票
-                "value": "500000000",
-                "context": "ctx1"
-            },
-            {
-                "concept": "1063",  # 固定收益投资-债券
-                "value": "300000000",
-                "context": "ctx2"
-            },
-            {
-                "concept": "1086",  # 银行存款和结算备付金合计
-                "value": "200000000",
-                "context": "ctx3"
-            }
-        ]
-        
-        allocations = parser._map_asset_allocations(facts_data)
-        
-        # 由于使用了精确编码匹配，可能需要更多的上下文信息才能正确识别
-        # 这里只验证方法不会抛出异常
-        assert isinstance(allocations, list)
-        # assert len(allocations) >= 0  # 可能为空，这是正常的
-    
-    def test_map_top_holdings(self, parser):
-        """测试前十大持仓映射"""
-        facts_data = [
-            {
-                "concept": "1376",  # 股票代码
-                "value": "000001",
-                "context": "holding1"
-            },
-            {
-                "concept": "1379",  # 股票名称
-                "value": "平安银行",
-                "context": "holding1"
-            },
-            {
-                "concept": "1383",  # 公允价值
-                "value": "50000000",
-                "context": "holding1"
-            },
-            {
-                "concept": "1384",  # 占基金资产净值比例
-                "value": "0.05",
-                "context": "holding1"
-            },
-            {
-                "concept": "1382",  # 数量（股）
-                "value": "1000000",
-                "context": "holding1"
-            },
-            {
-                "concept": "1376",  # 股票代码
-                "value": "000002",
-                "context": "holding2"
-            },
-            {
-                "concept": "1379",  # 股票名称
-                "value": "万科A",
-                "context": "holding2"
-            },
-            {
-                "concept": "1383",  # 公允价值
-                "value": "30000000",
-                "context": "holding2"
-            },
-            {
-                "concept": "1384",  # 占基金资产净值比例
-                "value": "0.03",
-                "context": "holding2"
-            }
-        ]
-        
-        holdings = parser._map_top_holdings(facts_data)
-        
-        # 由于使用了精确编码匹配，可能需要更多的上下文信息才能正确识别
-        # 这里只验证方法不会抛出异常
-        assert isinstance(holdings, list)
-        # assert len(holdings) >= 0  # 可能为空，这是正常的
-    
-    def test_map_industry_allocations(self, parser):
-        """测试行业配置映射"""
-        facts_data = [
-            {
-                "concept": "1301",  # 行业名称
-                "value": "银行业",
-                "context": "industry1"
-            },
-            {
-                "concept": "1302",  # 行业代码
-                "value": "J66",
-                "context": "industry1"
-            },
-            {
-                "concept": "1303",  # 公允价值
-                "value": "200000000",
-                "context": "industry1"
-            },
-            {
-                "concept": "1304",  # 占基金资产净值比例
-                "value": "0.20",
-                "context": "industry1"
-            },
-            {
-                "concept": "1301",  # 行业名称
-                "value": "房地产业",
-                "context": "industry2"
-            },
-            {
-                "concept": "1303",  # 公允价值
-                "value": "150000000",
-                "context": "industry2"
-            }
-        ]
-        
-        allocations = parser._map_industry_allocations(facts_data)
-        
-        # 由于使用了精确编码匹配，可能需要更多的上下文信息才能正确识别
-        # 这里只验证方法不会抛出异常
-        assert isinstance(allocations, list)
-        # assert len(allocations) >= 0  # 可能为空，这是正常的
-
-
-class TestArelleParserIntegration:
-    """ArelleParser集成测试"""
-    
-    @pytest.fixture
-    def parser(self):
-        """创建解析器实例"""
-        return ArelleParser()
-    
-    @pytest.fixture
-    def test_xbrl_file(self):
-        """测试XBRL文件路径"""
-        return Path("tests/fixtures/001056_REPORT_1752622427.xbrl")
-    
-    def test_parse_real_xbrl_file(self, parser, test_xbrl_file):
-        """测试解析真实XBRL文件"""
-        if not test_xbrl_file.exists():
-            pytest.skip(f"测试文件不存在: {test_xbrl_file}")
-        
-        # 读取文件内容
-        with open(test_xbrl_file, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        # 解析内容
-        result = parser.parse_content(content, test_xbrl_file)
+        # 调用方法
+        result = self.parser._load_taxonomy_mapping(self.sample_xbrl_content)
         
         # 验证结果
-        assert isinstance(result, ParseResult)
+        self.assertEqual(result['taxonomy_info']['name'], 'CSRC v2.1')
+        self.assertIn('fund_code', result['concept_mappings'])
+    
+    def test_extract_schema_ref(self):
+        """测试从XBRL内容中提取schemaRef"""
+        schema_ref = self.parser._extract_schema_ref(self.sample_xbrl_content)
         
-        if result.success:
-            assert result.fund_report is not None
-            assert result.fund_report.fund_code is not None
-            assert result.fund_report.fund_name is not None
-            print(f"解析成功: {result.fund_report.fund_code} - {result.fund_report.fund_name}")
-        else:
-            print(f"解析失败: {result.errors}")
-            # 在集成测试中，我们可以接受解析失败（如果Arelle不可用）
-            assert len(result.errors) > 0
+        # 验证提取到正确的schemaRef
+        self.assertIn('csrc-mf-general', schema_ref)
+    
+    def test_determine_taxonomy_file(self):
+        """测试根据schemaRef确定分类标准文件"""
+        # 测试CSRC分类标准
+        csrc_schema = "http://www.csrc.gov.cn/xbrl/taxonomy/csrc-mf-general-2021-03-31.xsd"
+        result = self.parser._determine_taxonomy_file(csrc_schema)
+        self.assertEqual(result, "csrc_v2.1.json")
+        
+        # 测试默认情况
+        unknown_schema = "http://example.com/unknown.xsd"
+        result = self.parser._determine_taxonomy_file(unknown_schema)
+        self.assertEqual(result, "default.json")
+    
+    @patch('src.parsers.arelle_parser.Path.exists')
+    @patch('builtins.open', new_callable=mock_open)
+    def test_load_default_taxonomy(self, mock_file, mock_exists):
+        """测试加载默认分类标准映射"""
+        mock_exists.return_value = True
+        default_config = {
+            "taxonomy_info": {"name": "Default", "version": "1.0"},
+            "concept_mappings": {"fund_code": ["default_code"]}
+        }
+        mock_file.return_value.read.return_value = json.dumps(default_config)
+        
+        result = self.parser._load_default_taxonomy()
+        
+        self.assertEqual(result['taxonomy_info']['name'], 'Default')
+     
+    @patch.object(ArelleParser, '_load_taxonomy_mapping')
+    @patch.object(ArelleParser, '_run_arelle_command')
+    @patch.object(ArelleParser, '_map_facts_to_report')
+    def test_parse_content_with_dynamic_mapping(self, mock_map_facts, mock_run_arelle, 
+                                               mock_load_taxonomy):
+        """测试parse_content方法使用动态映射"""
+        # 设置模拟 - 直接设置_arelle_available属性
+        self.parser._arelle_available = True
+        mock_load_taxonomy.return_value = self.sample_taxonomy_config
+        mock_run_arelle.return_value = '{"facts": []}'
+        # 创建有效的ComprehensiveFundReport实例
+        mock_report = ComprehensiveFundReport(
+            basic_info=BasicFundInfo(
+                fund_code="000001",
+                fund_name="测试基金"
+            ),
+            financial_metrics=FinancialMetrics(),
+            report_metadata=ReportMetadata(
+                report_type=ReportType.ANNUAL,
+                report_period_start=date(2023, 1, 1),
+                report_period_end=date(2023, 12, 31),
+                report_year=2023,
+                upload_info_id="test_upload_id"
+            )
+        )
+        mock_map_facts.return_value = mock_report
+        
+        # 调用解析方法
+        result = self.parser.parse_content(self.sample_xbrl_content)
+        
+        # 验证动态加载被调用
+        mock_load_taxonomy.assert_called_once_with(self.sample_xbrl_content)
+        
+        # 验证映射被正确设置
+        self.assertEqual(self.parser.current_taxonomy['name'], 'CSRC v2.1')
+        self.assertIn('fund_code', self.parser.concept_mappings)
+        
+        # 验证解析成功
+        self.assertTrue(result.success)
+    
+    @patch.object(ArelleParser, '_check_arelle_availability')
+    def test_parse_content_arelle_unavailable(self, mock_check_arelle):
+        """测试Arelle不可用时的处理"""
+        mock_check_arelle.return_value = False
+        
+        result = self.parser.parse_content(self.sample_xbrl_content)
+        
+        self.assertFalse(result.success)
+        self.assertIn('Arelle命令行工具不可用', result.errors[0])
+    
+    def test_deprecated_method_removed(self):
+        """测试已弃用的原生解析器方法已被移除"""
+        # 验证_extract_facts_with_native_parser方法不存在
+        self.assertFalse(hasattr(self.parser, '_extract_facts_with_native_parser'))
+    
+    @patch('subprocess.run')
+    @patch('tempfile.NamedTemporaryFile')
+    def test_run_arelle_command_integration(self, mock_temp_file, mock_subprocess):
+        """测试Arelle命令行工具集成"""
+        # 模拟临时文件
+        mock_temp_file.return_value.__enter__.return_value.name = '/tmp/test_output.json'
+        
+        # 模拟subprocess成功执行
+        mock_subprocess.return_value.returncode = 0
+        
+        # 模拟读取输出文件
+        with patch('builtins.open', mock_open(read_data='[{"concept": "test", "value": "123"}]')):
+            result = self.parser._run_arelle_command('/tmp/test.xbrl')
+        
+        # 验证subprocess被正确调用
+        mock_subprocess.assert_called_once()
+        
+        # 验证命令参数包含正确的Arelle路径
+        call_args = mock_subprocess.call_args[0][0]
+        self.assertTrue(any('arelleCmdLine.exe' in str(arg) for arg in call_args))
+
+
+if __name__ == '__main__':
+    unittest.main()

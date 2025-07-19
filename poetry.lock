@@ -208,17 +208,6 @@ test = ["anyio[trio]", "coverage[toml] (>=4.5)", "hypothesis (>=4.0)", "mock (>=
 trio = ["trio (<0.22)"]
 
 [[package]]
-name = "arelle"
-version = "1.2.5"
-description = "arelle xblr modified by Lendflo"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "arelle-1.2.5.tar.gz", hash = "sha256:a0d1927762da156aae853777cb5691c075e21007d256d7575b776d9fb47a9eea"},
-]
-
-[[package]]
 name = "argon2-cffi"
 version = "25.1.0"
 description = "Argon2 for Python"
@@ -3407,4 +3396,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "5d382aa2f7e6f33d21e12c914c77cc698a685757eea480b48f447b0a9f1dd6fb"
+content-hash = "5f686d3d595b2ca89d76e479e6de719df80d8a72b2fc055ef3ca3ba6e3741e1c"

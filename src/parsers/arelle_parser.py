@@ -37,48 +37,9 @@ class ArelleParser(BaseParser):
         self.logger = get_logger("parser.arelle_cmdline")
         self.asset_calculator = AssetAllocationCalculator()
         
-        # 基于官方XBRL分类标准框架的概念映射规则
-        # 根据PHASE_1.1_SPRINT_PLAN.md重构，使用精确的XBRL元素编码
-        # NOTE: This mapping is now based on the precise codes from the official XBRL taxonomy,
-        # as required by PHASE_1.1_SPRINT_PLAN.md. The logic consuming this dictionary
-        # must be updated to perform exact matching on concept codes, not fuzzy text matching.
-        self.concept_mappings = {
-            # §2.1 基金基本情况
-            "fund_code": ["0012"],
-            "fund_name": ["0009", "0011"], # 基金名称, 基金简称
-            "fund_manager": ["0186"],
-
-            # §3.1 主要财务指标
-            "net_asset_value": ["0506"], # 期末基金份额净值
-            "total_net_assets": ["0505"], # 期末基金资产净值
-            "period_profit": ["0497"], # 本期利润
-
-            # §4.1 报告元数据
-            "report_period_start": ["dei:DocumentPeriodStartDate", "2023"],
-            "report_period_end": ["dei:DocumentPeriodEndDate", "2024"],
-            "report_type_name": ["dei:DocumentType", "0002"],
-
-            # §8.1 期末基金资产组合情况 (大类资产配置)
-            "asset_equity": ["1051"], # 权益投资-股票
-            "asset_bond": ["1063"], # 固定收益投资-债券
-            "asset_cash": ["1086"], # 银行存款和结算备付金合计
-            "asset_total": ["1090"], # 合计
-
-            # §8.2 按行业分类的股票投资组合
-            "industry_table": "Table-8.2",
-            "industry_name": [], # Dimension, not a fact
-            "industry_fair_value": [str(c) for c in list(range(1100, 1170, 2)) + [2968, 2971, 2974, 2977, 2980, 2983, 2986, 2989, 2992, 2995, 2998, 3001, 3004, 3007, 3010, 3013]],
-            "industry_percentage": [str(c) for c in list(range(1101, 1171, 2)) + [2969, 2972, 2975, 2978, 2981, 2984, 2987, 2990, 2993, 2996, 2999, 3002, 3005, 3008, 3011, 3014]],
-
-            # §8.3 前十名股票投资明细
-            "holdings_table": "Table-8.3.1",
-            "holding_rank": ["1375"],
-            "holding_code": ["1376"],
-            "holding_name": ["1379"],
-            "holding_shares": ["1382"],
-            "holding_fair_value": ["1383"],
-            "holding_percentage": ["1384"],
-        }
+        # 动态加载的分类标准映射（在解析时根据XBRL文件内容确定）
+        self.current_taxonomy = None
+        self.concept_mappings = {}
         
         # 检查Arelle命令行工具是否可用
         self._arelle_available = self._check_arelle_availability()
@@ -144,6 +105,11 @@ class ArelleParser(BaseParser):
                     "Arelle命令行工具不可用，无法解析XBRL文件"
                 )
             
+            # 动态加载分类标准映射
+            taxonomy_config = self._load_taxonomy_mapping(content)
+            self.current_taxonomy = taxonomy_config.get('taxonomy_info', {})
+            self.concept_mappings = taxonomy_config.get('concept_mappings', {})
+            
             # 创建临时文件
             with tempfile.NamedTemporaryFile(
                 mode='w', 
@@ -184,60 +150,115 @@ class ArelleParser(BaseParser):
             self.logger.error(f"XBRL解析异常: {str(e)}")
             return self._create_error_result(f"XBRL解析异常: {str(e)}")
     
-    def _extract_facts_with_native_parser(self, file_path: str) -> Optional[List[Dict]]:
-        """使用项目内置的XBRL解析器提取事实
+    def _load_taxonomy_mapping(self, xbrl_content: str) -> Dict[str, Any]:
+        """动态加载XBRL分类标准映射
         
         Args:
-            file_path: XBRL文件路径
+            xbrl_content: XBRL文件内容
             
         Returns:
-            Optional[List[Dict]]: 事实列表，如果失败则返回None
+            Dict[str, Any]: 分类标准映射配置
         """
         try:
-            from lxml import etree
-            from src.parsers.xbrl import FactExtractor
-            import html
+            # 提取schemaRef信息
+            schema_ref = self._extract_schema_ref(xbrl_content)
             
-            # 使用lxml解析XBRL文件
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            # 根据schemaRef确定分类标准
+            taxonomy_file = self._determine_taxonomy_file(schema_ref)
             
-            # 处理HTML实体
-            content = content.replace('&nbsp;', ' ')
-            content = content.replace('&amp;', '&')
-            content = content.replace('&lt;', '<')
-            content = content.replace('&gt;', '>')
-            content = content.replace('&quot;', '"')
-            content = content.replace('&apos;', "'")
+            # 加载映射文件
+            config_path = Path(__file__).parent.parent.parent / "config" / "xbrl_taxonomies" / taxonomy_file
             
-            # 解析XML文档
-            parser = etree.XMLParser(recover=True, strip_cdata=False)
-            doc = etree.fromstring(content.encode('utf-8'), parser)
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    taxonomy_config = json.load(f)
+                taxonomy_name = taxonomy_config.get('taxonomy_info', {}).get('name', taxonomy_file)
+                self.logger.info(f"成功加载分类标准映射: {taxonomy_file}")
+                self.logger.info(f"Using taxonomy '{taxonomy_name}' based on schemaRef '{schema_ref}'")
+                return taxonomy_config
+            else:
+                self.logger.warning(f"分类标准映射文件不存在: {taxonomy_file}，使用默认映射")
+                return self._load_default_taxonomy()
+                
+        except Exception as e:
+            self.logger.error(f"加载分类标准映射时出错: {str(e)}，使用默认映射")
+            return self._load_default_taxonomy()
+    
+    def _extract_schema_ref(self, xbrl_content: str) -> str:
+        """从XBRL内容中提取schemaRef信息
+        
+        Args:
+            xbrl_content: XBRL文件内容
             
-            # 使用FactExtractor提取事实
-            fact_extractor = FactExtractor(doc)
-            facts = fact_extractor.extract_facts()
+        Returns:
+            str: schemaRef标识符
+        """
+        try:
+            # 简单的正则表达式提取schemaRef
+            import re
             
-            # 转换为与Arelle兼容的格式
-            converted_facts = []
-            for fact in facts:
-                converted_fact = {
-                    'concept': fact.get('name', ''),
-                    'value': str(fact.get('value', '')),
-                    'context': fact.get('contextRef', ''),
-                    'unit': fact.get('unitRef', '')
-                }
-                converted_facts.append(converted_fact)
+            # 查找link:schemaRef标签
+            schema_ref_pattern = r'<link:schemaRef[^>]*xlink:href=["\']([^"\'>]+)["\'][^>]*>'
+            matches = re.findall(schema_ref_pattern, xbrl_content, re.IGNORECASE)
             
-            self.logger.info(f"使用内置解析器成功提取 {len(converted_facts)} 个事实")
-            return converted_facts
+            if matches:
+                schema_ref = matches[0]
+                self.logger.info(f"提取到schemaRef: {schema_ref}")
+                return schema_ref
+            
+            # 如果没有找到，尝试查找命名空间声明
+            namespace_pattern = r'xmlns:([^=]+)=["\']([^"\'>]*csrc[^"\'>]*)["\']'
+            ns_matches = re.findall(namespace_pattern, xbrl_content, re.IGNORECASE)
+            
+            if ns_matches:
+                namespace = ns_matches[0][1]
+                self.logger.info(f"从命名空间提取到标识符: {namespace}")
+                return namespace
+            
+            return "default"
             
         except Exception as e:
-            self.logger.error(f"使用内置解析器提取事实失败: {str(e)}")
-            return None
+            self.logger.error(f"提取schemaRef时出错: {str(e)}")
+            return "default"
+    
+    def _determine_taxonomy_file(self, schema_ref: str) -> str:
+        """根据schemaRef确定分类标准文件
+        
+        Args:
+            schema_ref: schemaRef标识符
+            
+        Returns:
+            str: 分类标准文件名
+        """
+        schema_ref_lower = schema_ref.lower()
+        
+        # 根据schemaRef模式匹配分类标准
+        if any(pattern in schema_ref_lower for pattern in ['csrc-mf-general', 'csrc-fund', 'csrc-mf']):
+            return "csrc_v2.1.json"
+        
+        # 默认使用default.json
+        return "default.json"
+    
+    def _load_default_taxonomy(self) -> Dict[str, Any]:
+        """加载默认分类标准映射
+        
+        Returns:
+            Dict[str, Any]: 默认分类标准映射配置
+        """
+        try:
+            config_path = Path(__file__).parent.parent.parent / "config" / "xbrl_taxonomies" / "default.json"
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            self.logger.error(f"加载默认分类标准映射失败: {str(e)}")
+            # 返回最基本的映射
+            return {
+                "taxonomy_info": {"name": "Fallback", "version": "1.0"},
+                "concept_mappings": {}
+            }
     
     def _run_arelle_command(self, file_path: str) -> Optional[str]:
-        """执行XBRL事实提取（优先使用内置解析器，Arelle作为备用）
+        """使用Arelle命令行工具提取XBRL事实
         
         Args:
             file_path: XBRL文件路径
@@ -245,35 +266,27 @@ class ArelleParser(BaseParser):
         Returns:
             Optional[str]: 事实列表的JSON字符串，如果失败则返回None
         """
-        # 首先尝试使用内置的XBRL解析器
-        facts = self._extract_facts_with_native_parser(file_path)
-        if facts:
-            return json.dumps(facts, ensure_ascii=False)
-        
-        # 如果内置解析器失败，尝试使用Arelle作为备用
-        self.logger.warning("内置解析器失败，尝试使用Arelle备用方案")
-        
         try:
-            # 创建临时日志文件
+            # 获取项目根目录和Arelle环境路径
+            project_root = Path(__file__).parent.parent.parent
+            arelle_cmd = project_root / "tools" / "arelle_env" / ".venv" / "Scripts" / "arelleCmdLine.exe"
+            
+            # 创建临时输出文件
             with tempfile.NamedTemporaryFile(
                 mode='w', 
-                suffix='.log', 
+                suffix='.json', 
                 delete=False
-            ) as log_file:
-                log_file_path = log_file.name
+            ) as output_file:
+                output_file_path = output_file.name
             
             try:
-                # 获取项目根目录
-                project_root = Path(__file__).parent.parent.parent
-                script_path = project_root / "scripts" / "arelle_extract_facts.py"
-                
-                # 构建命令调用独立脚本
+                # 构建Arelle命令
                 cmd = [
-                    "poetry", "run", "python", 
-                    str(script_path),
-                    file_path,
-                    "--log-file", log_file_path,
-                    "--output-format", "json"
+                    str(arelle_cmd),
+                    "--file", file_path,
+                    "--facts", output_file_path,
+                    "--factListCols", "Label Name contextRef unitRef Dec Value EntityScheme EntityIdentifier Period Dimensions",
+                    "--logLevel", "WARNING"
                 ]
                 
                 # 执行命令
@@ -284,36 +297,72 @@ class ArelleParser(BaseParser):
                     timeout=60  # 60秒超时
                 )
                 
-                if result.returncode == 0 and result.stdout.strip():
-                    # 解析脚本输出
-                    output_data = json.loads(result.stdout.strip())
-                    if "facts" in output_data:
-                        self.logger.info("Arelle备用方案成功")
-                        return json.dumps(output_data["facts"], ensure_ascii=False)
-                    elif "error" in output_data:
-                        self.logger.error(f"Arelle脚本错误: {output_data['error']}")
-                        return None
-                else:
-                    self.logger.error(
-                        f"Arelle命令执行失败: {result.stderr}"
-                    )
-                    return None
+                if result.returncode == 0:
+                    # 记录Arelle警告信息（即使成功执行也可能有警告）
+                    if result.stderr:
+                        self.logger.warning(f"Arelle command produced warnings: {result.stderr}")
+                    
+                    # 读取输出文件
+                    if os.path.exists(output_file_path):
+                        with open(output_file_path, 'r', encoding='utf-8') as f:
+                            facts_content = f.read().strip()
+                        
+                        if facts_content:
+                            # 解析CSV格式的事实数据并转换为JSON
+                            facts_json = self._parse_arelle_facts_csv(facts_content)
+                            if facts_json:
+                                self.logger.info("Arelle命令行工具成功提取事实")
+                                return facts_json
+                
+                self.logger.error(f"Arelle命令执行失败: {result.stderr}")
+                return None
                     
             finally:
-                # 清理日志文件
+                # 清理临时文件
                 try:
-                    os.unlink(log_file_path)
+                    os.unlink(output_file_path)
                 except Exception:
                     pass
                     
         except subprocess.TimeoutExpired:
             self.logger.error("Arelle命令执行超时")
             return None
-        except json.JSONDecodeError as e:
-            self.logger.error(f"解析Arelle脚本输出时出错: {str(e)}")
-            return None
         except Exception as e:
             self.logger.error(f"执行Arelle命令时出错: {str(e)}")
+            return None
+    
+    def _parse_arelle_facts_csv(self, csv_content: str) -> Optional[str]:
+        """解析Arelle输出的CSV格式事实数据
+        
+        Args:
+            csv_content: CSV格式的事实数据
+            
+        Returns:
+            Optional[str]: JSON格式的事实数据
+        """
+        try:
+            import csv
+            from io import StringIO
+            
+            facts = []
+            csv_reader = csv.DictReader(StringIO(csv_content))
+            
+            for row in csv_reader:
+                fact = {
+                    'concept': row.get('Name', ''),
+                    'value': row.get('Value', ''),
+                    'context': row.get('contextRef', ''),
+                    'unit': row.get('unitRef', ''),
+                    'label': row.get('Label', ''),
+                    'period': row.get('Period', ''),
+                    'dimensions': row.get('Dimensions', '')
+                }
+                facts.append(fact)
+            
+            return json.dumps(facts, ensure_ascii=False)
+            
+        except Exception as e:
+            self.logger.error(f"解析Arelle CSV输出时出错: {str(e)}")
             return None
     
     def _map_facts_to_report(self, facts_json: str) -> Optional[ComprehensiveFundReport]:
