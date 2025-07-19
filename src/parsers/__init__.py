@@ -12,9 +12,9 @@ except ImportError:
     OptimizedHTMLParser = None
 
 try:
-    from .arelle_xbrl_parser import ArelleXBRLParser
+    from .arelle_parser import ArelleParser
 except ImportError:
-    ArelleXBRLParser = None
+    ArelleParser = None
 
 __all__ = [
     "XBRLParserFacade", 
@@ -24,5 +24,5 @@ __all__ = [
     "FormatDetector", 
     "DocumentFormat",
     "OptimizedHTMLParser",
-    "ArelleXBRLParser"
+    "ArelleParser"
 ]
